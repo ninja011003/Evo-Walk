@@ -24,7 +24,7 @@ class Body:
             a = 0 #immovable objects !!
         else:
             a = Vector(self.total_force.x/self.mass,self.total_force.y/self.mass)
-            self.velocity.add(a*dt)
+            self.velocity.add(Vector(a.x*dt,a.y*dt))
             self.position.add(Vector(self.velocity.x*dt,self.velocity.y*dt))
             
         self.total_force= Vector(0,0)
