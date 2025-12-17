@@ -37,5 +37,8 @@ class Vector:
     def dot(self, vector: "Vector"):
         return self.x * vector.x + self.y * vector.y
     
+    def compute_dist(v1:"Vector",v2:"Vector"):
+        return ((v2.x-v1.x)**2 + (v2.y-v1.y)**2)**0.5
+    
     def __repr__(self):
         return f"Vector({self.x}, {self.y})"

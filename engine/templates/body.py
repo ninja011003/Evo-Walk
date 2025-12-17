@@ -13,6 +13,10 @@ class Body:
         
     def clear_forces(self):
         self.total_force = Vector(0,0)
+    
+    def compute_dist(b1:"Body",b2:"Body"):
+        v1,v2 = b1.position,b2.position
+        return ((v2.x-v1.x)**2 + (v2.y-v1.y)**2)**0.5
         
     def integrate(self,dt):
         # semi euler's method
