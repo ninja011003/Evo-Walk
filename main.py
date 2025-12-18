@@ -240,7 +240,7 @@ class Simulation:
         for bob in self.bobs:
             if bob.body.position.y > HEIGHT - BOB_RADIUS:
                 bob.body.position.y = HEIGHT - BOB_RADIUS
-                bob.body.velocity.y =0
+                bob.body.velocity.y *= -0.5
             if bob.body.position.x < BOB_RADIUS:
                 bob.body.position.x = BOB_RADIUS
                 bob.body.velocity.x *= -0.5
@@ -269,9 +269,9 @@ class Simulation:
         surface.blit(mode_text, (300, 22))
 
         if self.running:
-            status = font_small.render("● RUNNING", True, (80, 200, 120))
+            status = font_small.render("RUNNING", True, (80, 200, 120))
         else:
-            status = font_small.render("● PAUSED", True, (255, 107, 107))
+            status = font_small.render("PAUSED", True, (255, 107, 107))
         surface.blit(status, (WIDTH - 300, 22))
 
         for rod in self.rods:

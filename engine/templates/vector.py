@@ -34,7 +34,7 @@ class Vector:
         self.y /= scalar
         return self
         
-    def dot(self, vector: "Vector"):
+    def dot(self, vector: "Vector")->float:
         return self.x * vector.x + self.y * vector.y
     
     def compute_dist(v1:"Vector",v2:"Vector"):
