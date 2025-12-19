@@ -24,14 +24,12 @@ DEBUG_BG = (22, 22, 30, 220)
 DEBUG_BORDER = (50, 50, 70)
 DEBUG_LABEL = (130, 130, 150)
 DEBUG_VALUE = (200, 200, 220)
-DEBUG_HIGHLIGHT = (66, 133, 244)  # Professional Google Blue
+DEBUG_HIGHLIGHT = (66, 133, 244)
 
-# Selection colors - professional blue theme
-SELECTED_COLOR = (66, 133, 244)  # Google Blue
+SELECTED_COLOR = (66, 133, 244)
 SELECTED_GLOW = (66, 133, 244, 80)
 SELECTED_BORDER = (100, 160, 255)
 
-# Input field colors
 INPUT_BG = (35, 35, 48)
 INPUT_BG_ACTIVE = (45, 50, 65)
 INPUT_BORDER = (60, 60, 80)
@@ -191,7 +189,6 @@ class InputField:
         if not self.editable:
             pygame.draw.rect(surface, (50, 50, 60), rect, border_radius=4)
         
-        # Value color based on type
         if isinstance(self.original_value, bool):
             val_color = (80, 200, 120) if self.value.lower() in ('true', '1', 'yes') else (255, 107, 107)
         elif isinstance(self.original_value, (int, float)):
@@ -202,13 +199,11 @@ class InputField:
         text_surface = font_input.render(self.value, True, val_color)
         text_rect = text_surface.get_rect(midleft=(rect.x + 10, rect.centery))
         
-        # Clip text
         clip_rect = pygame.Rect(rect.x + 6, rect.y, rect.width - 12, rect.height)
         surface.set_clip(clip_rect)
         surface.blit(text_surface, text_rect)
         surface.set_clip(None)
         
-        # Draw cursor
         if self.active and self.cursor_visible:
             cursor_x = rect.x + 10 + font_input.size(self.value[:self.cursor_pos])[0]
             pygame.draw.line(surface, INPUT_TEXT, 
@@ -217,7 +212,6 @@ class InputField:
 
 
 class DebugPanel:
-    # Keys that should be read-only (not editable)
     READ_ONLY_KEYS = {'type', 'name', 'id', 'hovered', 'active', 'is_running', 'bob_count', 'rod_count'}
     
     def __init__(self, x, y, width, height):
@@ -245,7 +239,7 @@ class DebugPanel:
         else:
             debug_info = self.selected_object
         
-        y_offset = 135  # After header and type/name
+        y_offset = 135
         label_width = 95
         field_x = label_width + 20
         field_width = self.rect.width - field_x - 25
@@ -276,17 +270,14 @@ class DebugPanel:
         if not self.visible:
             return False
         
-        # Handle clicks on the panel
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if not self.rect.collidepoint(event.pos):
-                # Deactivate any active field when clicking outside
                 for _, field in self.input_fields:
                     if field.active:
                         field._apply_value()
                         field.active = False
                 return False
         
-        # Translate event position relative to panel
         if hasattr(event, 'pos'):
             rel_pos = (event.pos[0] - self.rect.x, event.pos[1] - self.rect.y)
             modified_event = pygame.event.Event(event.type, {**event.__dict__, 'pos': rel_pos})
@@ -306,6 +297,23 @@ class DebugPanel:
     def update(self, dt):
         for _, field in self.input_fields:
             field.update(dt)
+        
+        if self.selected_object is None:
+            return
+        
+        if hasattr(self.selected_object, 'get_debug_info'):
+            debug_info = self.selected_object.get_debug_info()
+        else:
+            debug_info = self.selected_object
+        
+        for key, field in self.input_fields:
+            if field.active:
+                continue
+            if key in debug_info:
+                new_value = str(debug_info[key])
+                if field.value != new_value:
+                    field.value = new_value
+                    field.original_value = debug_info[key]
 
     def draw(self, surface):
         if not self.visible:
@@ -314,29 +322,24 @@ class DebugPanel:
         panel_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
         panel_surface.fill(DEBUG_BG)
         
-        # Border with subtle glow effect
         pygame.draw.rect(panel_surface, DEBUG_BORDER, 
                         (0, 0, self.rect.width, self.rect.height), 1, border_radius=8)
         
-        # Header with gradient effect
         header_rect = pygame.Rect(0, 0, self.rect.width, 50)
         pygame.draw.rect(panel_surface, (28, 28, 38, 240), header_rect, border_top_left_radius=8, border_top_right_radius=8)
         pygame.draw.line(panel_surface, DEBUG_BORDER, 
                         (0, 50), (self.rect.width, 50), 1)
         
-        # Title with icon indicator
         pygame.draw.circle(panel_surface, SELECTED_COLOR, (22, 25), 6)
         title = font_debug_title.render("DEBUG INSPECTOR", True, DEBUG_HIGHLIGHT)
         panel_surface.blit(title, (38, 15))
         
         if self.selected_object is None:
-            # Empty state with better styling
             hint = font_debug.render("Click a Bob or Rod", True, DEBUG_LABEL)
             panel_surface.blit(hint, (15, 75))
             hint2 = font_debug.render("to inspect its values", True, DEBUG_LABEL)
             panel_surface.blit(hint2, (15, 100))
             
-            # Decorative element
             pygame.draw.rect(panel_surface, (35, 35, 50), (15, 135, self.rect.width - 30, 70), border_radius=6)
             icon_text = font_debug.render("Select an object", True, (80, 80, 100))
             panel_surface.blit(icon_text, (25, 162))
@@ -351,7 +354,6 @@ class DebugPanel:
             obj_type = debug_info.get("type", "Object")
             obj_name = debug_info.get("name", "Unknown")
             
-            # Type badge with blue background
             type_badge_width = font_debug_title.size(obj_type)[0] + 20
             pygame.draw.rect(panel_surface, SELECTED_COLOR, 
                            (15, y_offset - 2, type_badge_width, 28), border_radius=5)
@@ -359,40 +361,32 @@ class DebugPanel:
             panel_surface.blit(type_surface, (25, y_offset + 2))
             y_offset += 34
             
-            # Object name
             name_surface = font_debug.render(obj_name, True, DEBUG_VALUE)
             panel_surface.blit(name_surface, (15, y_offset))
             y_offset += 30
             
-            # Separator line
             pygame.draw.line(panel_surface, DEBUG_BORDER,
                            (15, y_offset), (self.rect.width - 15, y_offset), 1)
             y_offset += 14
             
-            # Section title
             section_title = font_debug_label.render("PROPERTIES", True, (80, 80, 100))
             panel_surface.blit(section_title, (15, y_offset))
             y_offset += 26
             
-            # Draw input fields
             for key, field in self.input_fields:
                 if field.rect.y > self.rect.height - 50:
                     break
                 
-                # Label
                 label_surface = font_debug_label.render(f"{key}:", True, DEBUG_LABEL)
                 panel_surface.blit(label_surface, (15, field.rect.y + 5))
                 
-                # Field
                 field.draw(panel_surface)
                 
-                # Edit indicator for editable fields
                 if field.editable:
                     indicator_x = self.rect.width - 15
                     indicator_y = field.rect.y + field.rect.height // 2
                     pygame.draw.circle(panel_surface, SELECTED_COLOR, (indicator_x - 6, indicator_y), 4)
             
-            # Help text at bottom
             help_y = self.rect.height - 35
             pygame.draw.line(panel_surface, DEBUG_BORDER,
                            (15, help_y - 10), (self.rect.width - 15, help_y - 10), 1)
@@ -479,11 +473,9 @@ class SimulationUI:
         return None
 
     def handle_event(self, event):
-        # Let debug panel handle events first (for input fields)
         if self.debug_panel.visible and self.debug_panel.handle_event(event):
             return
         
-        # Skip other interactions if debug panel has active input
         if self.debug_panel.has_active_input():
             if event.type == pygame.KEYDOWN:
                 return
@@ -498,7 +490,6 @@ class SimulationUI:
             if self.debug_panel.visible and self.debug_panel.rect.collidepoint(x, y):
                 return
             
-            # Don't process toolbar clicks for debug panel
             if y < CANVAS_TOP:
                 return
             
@@ -614,7 +605,6 @@ class SimulationUI:
             color = SELECTED_COLOR if is_selected else ROD_COLOR
             width = 5 if is_selected else 3
             
-            # Draw glow effect for selected rod
             if is_selected:
                 pygame.draw.line(surface, SELECTED_BORDER, (x1, y1), (x2, y2), width + 4)
             pygame.draw.line(surface, color, (x1, y1), (x2, y2), width)
@@ -643,11 +633,8 @@ class SimulationUI:
             else:
                 color = BOB_COLOR
 
-            # Draw selection ring with professional blue glow
             if is_selected:
-                # Outer glow
                 pygame.draw.circle(surface, SELECTED_BORDER, (x, y), bob.radius + 8, 2)
-                # Inner glow  
                 pygame.draw.circle(surface, SELECTED_COLOR, (x, y), bob.radius + 4, 2)
             
             pygame.draw.circle(surface, color, (x, y), bob.radius)
