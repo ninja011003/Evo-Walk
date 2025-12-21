@@ -9,6 +9,7 @@ class Contraint:
         self.b2 = b2
         self.l = l
     
+    #TODO solve positional contrain iteratively and velocity once per solve
     def solve(self):
         #correction cal
         dist= Vector(self.b2.position.x-self.b1.position.x , self.b2.position.y-self.b1.position.y)
