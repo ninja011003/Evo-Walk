@@ -1,5 +1,6 @@
 import pygame
-from simulation import SimulationEngine, BOB_RADIUS, GRAVITY
+import math
+from simulation import SimulationEngine, BOB_RADIUS, BOX_WIDTH, BOX_HEIGHT, GRAVITY, FORCE_MAGNITUDE
 
 pygame.init()
 pygame.font.init()
@@ -14,7 +15,10 @@ TOOLBAR_BG = (28, 28, 36)
 BOB_COLOR = (255, 107, 107)
 BOB_HOVER = (255, 140, 140)
 BOB_SELECTED = (255, 200, 100)
+BOX_COLOR = (147, 112, 219)
+BOX_HOVER = (180, 150, 240)
 ROD_COLOR = (100, 181, 246)
+FORCE_COLOR = (255, 193, 7)
 BTN_COLOR = (45, 45, 60)
 BTN_HOVER = (65, 65, 85)
 BTN_ACTIVE = (80, 200, 120)
@@ -212,7 +216,7 @@ class InputField:
 
 
 class DebugPanel:
-    READ_ONLY_KEYS = {'type', 'name', 'id', 'hovered', 'active', 'is_running', 'bob_count', 'rod_count'}
+    READ_ONLY_KEYS = {'type', 'name', 'id', 'hovered', 'active', 'is_running', 'bob_count', 'box_count', 'rod_count', 'moi', 'torque', 'force.x', 'force.y', 'current_length', 'stretch', 'fps', 'dt', 'bob1', 'bob2'}
     
     def __init__(self, x, y, width, height):
         self.rect = pygame.Rect(x, y, width, height)
@@ -406,6 +410,8 @@ class SimulationUI:
         self.connecting_bob = None
         self.current_fps = 60
         self.current_dt = 0
+        self.force_start = None
+        self.force_target = None
         
         self.debug_panel = DebugPanel(
             WIDTH - DEBUG_PANEL_WIDTH - 15,
@@ -421,34 +427,50 @@ class SimulationUI:
         btn_y = 12
         btn_h = 36
         
-        self.bob_btn = Button(20, btn_y, 80, btn_h, "Bob", self.set_bob_mode, "BobButton")
-        self.rod_btn = Button(110, btn_y, 80, btn_h, "Rod", self.set_rod_mode, "RodButton")
-        self.pin_btn = Button(200, btn_y, 80, btn_h, "Pin", self.set_pin_mode, "PinButton")
+        self.bob_btn = Button(20, btn_y, 70, btn_h, "Bob", self.set_bob_mode, "BobButton")
+        self.box_btn = Button(95, btn_y, 70, btn_h, "Box", self.set_box_mode, "BoxButton")
+        self.rod_btn = Button(170, btn_y, 70, btn_h, "Rod", self.set_rod_mode, "RodButton")
+        self.pin_btn = Button(245, btn_y, 70, btn_h, "Pin", self.set_pin_mode, "PinButton")
+        self.force_btn = Button(320, btn_y, 70, btn_h, "Force", self.set_force_mode, "ForceButton")
         self.start_btn = Button(WIDTH - 290, btn_y, 80, btn_h, "Start", self.toggle_simulation, "StartButton")
         self.clear_btn = Button(WIDTH - 200, btn_y, 80, btn_h, "Clear", self.clear_all, "ClearButton")
         self.debug_btn = Button(WIDTH - 110, btn_y, 90, btn_h, "Debug", self.toggle_debug, "DebugButton")
         
-        self.buttons = [self.bob_btn, self.rod_btn, self.pin_btn, self.start_btn, self.clear_btn, self.debug_btn]
+        self.buttons = [self.bob_btn, self.box_btn, self.rod_btn, self.pin_btn, self.force_btn, self.start_btn, self.clear_btn, self.debug_btn]
         self.bob_btn.active = True
         self.debug_btn.active = True
 
-    def set_bob_mode(self):
-        self.mode = "bob"
-        self.bob_btn.active = True
+    def _clear_mode_buttons(self):
+        self.bob_btn.active = False
+        self.box_btn.active = False
         self.rod_btn.active = False
         self.pin_btn.active = False
+        self.force_btn.active = False
+
+    def set_bob_mode(self):
+        self.mode = "bob"
+        self._clear_mode_buttons()
+        self.bob_btn.active = True
+
+    def set_box_mode(self):
+        self.mode = "box"
+        self._clear_mode_buttons()
+        self.box_btn.active = True
 
     def set_rod_mode(self):
         self.mode = "rod"
-        self.bob_btn.active = False
+        self._clear_mode_buttons()
         self.rod_btn.active = True
-        self.pin_btn.active = False
 
     def set_pin_mode(self):
         self.mode = "pin"
-        self.bob_btn.active = False
-        self.rod_btn.active = False
+        self._clear_mode_buttons()
         self.pin_btn.active = True
+
+    def set_force_mode(self):
+        self.mode = "force"
+        self._clear_mode_buttons()
+        self.force_btn.active = True
 
     def toggle_simulation(self):
         self.engine.toggle()
@@ -464,6 +486,8 @@ class SimulationUI:
         self.start_btn.text = "Start"
         self.start_btn.active = False
         self.connecting_bob = None
+        self.force_start = None
+        self.force_target = None
         self.debug_panel.set_selected(None)
 
     def get_button_at(self, x, y):
@@ -494,29 +518,45 @@ class SimulationUI:
                 return
             
             clicked_bob = self.engine.get_bob_at(x, y)
-            clicked_rod = self.engine.get_rod_at(x, y) if not clicked_bob else None
+            clicked_box = self.engine.get_box_at(x, y) if not clicked_bob else None
+            clicked_body = clicked_bob or clicked_box
+            clicked_rod = self.engine.get_rod_at(x, y) if not clicked_body else None
             
-            if clicked_bob:
-                self.debug_panel.set_selected(clicked_bob)
+            if self.mode == "force":
+                if clicked_body:
+                    self.force_start = (x, y)
+                    self.force_target = clicked_body
+                    self.debug_panel.set_selected(clicked_body)
+                return
+            
+            if clicked_body:
+                self.debug_panel.set_selected(clicked_body)
             elif clicked_rod:
                 self.debug_panel.set_selected(clicked_rod)
             else:
                 self.debug_panel.set_selected(self.engine.get_debug_info(self.current_fps, self.current_dt))
             
             if self.engine.running:
-                if clicked_bob:
-                    self.engine.set_dragging(clicked_bob)
+                if clicked_body:
+                    self.engine.set_dragging(clicked_body)
             else:
                 if self.mode == "bob":
                     if clicked_bob:
                         self.engine.set_dragging(clicked_bob)
-                    elif not clicked_rod:
+                    elif not clicked_rod and not clicked_box:
                         new_bob = self.engine.create_bob(x, y, pinned=False)
                         self.engine.set_dragging(new_bob)
                         self.debug_panel.set_selected(new_bob)
+                elif self.mode == "box":
+                    if clicked_box:
+                        self.engine.set_dragging(clicked_box)
+                    elif not clicked_rod and not clicked_bob:
+                        new_box = self.engine.create_box(x, y, pinned=False)
+                        self.engine.set_dragging(new_box)
+                        self.debug_panel.set_selected(new_box)
                 elif self.mode == "pin":
-                    if clicked_bob:
-                        self.engine.toggle_pin(clicked_bob)
+                    if clicked_body:
+                        self.engine.toggle_pin(clicked_body)
                     elif not clicked_rod:
                         new_bob = self.engine.create_bob(x, y, pinned=True)
                         self.debug_panel.set_selected(new_bob)
@@ -534,27 +574,51 @@ class SimulationUI:
             x, y = event.pos
             if y >= CANVAS_TOP:
                 clicked_bob = self.engine.get_bob_at(x, y)
-                clicked_rod = self.engine.get_rod_at(x, y) if not clicked_bob else None
+                clicked_box = self.engine.get_box_at(x, y) if not clicked_bob else None
+                clicked_body = clicked_bob or clicked_box
+                clicked_rod = self.engine.get_rod_at(x, y) if not clicked_body else None
                 
-                if clicked_bob:
-                    self.debug_panel.set_selected(clicked_bob)
+                if clicked_body:
+                    self.debug_panel.set_selected(clicked_body)
                 elif clicked_rod:
                     self.debug_panel.set_selected(clicked_rod)
                 else:
                     self.debug_panel.set_selected(self.engine.get_debug_info(self.current_fps, self.current_dt))
 
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            self.engine.release_dragging()
+            if self.mode == "force" and self.force_start and self.force_target:
+                x, y = event.pos
+                dx = x - self.force_start[0]
+                dy = y - self.force_start[1]
+                length = (dx * dx + dy * dy) ** 0.5
+                if length > 10:
+                    scale = FORCE_MAGNITUDE * (length / 100)
+                    force_x = (dx / length) * scale
+                    force_y = (dy / length) * scale
+                    from simulation import Vector
+                    self.force_target.body.apply_point_force(
+                        Vector(force_x, force_y),
+                        Vector(self.force_start[0], self.force_start[1])
+                    )
+            self.force_start = None
+            self.force_target = None
+            self.engine.release()
 
         elif event.type == pygame.MOUSEMOTION:
             if self.engine.dragging_bob:
                 x, y = event.pos
                 y = max(CANVAS_TOP + BOB_RADIUS, y)
-                self.engine.move_bob(self.engine.dragging_bob, x, y)
+                self.engine.move(self.engine.dragging_bob, x, y)
+            elif self.engine.dragging_box:
+                x, y = event.pos
+                y = max(CANVAS_TOP + self.engine.dragging_box.height // 2, y)
+                self.engine.move(self.engine.dragging_box, x, y)
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.connecting_bob = None
+                self.force_start = None
+                self.force_target = None
             elif event.key == pygame.K_SPACE:
                 self.toggle_simulation()
             elif event.key == pygame.K_d:
@@ -562,12 +626,17 @@ class SimulationUI:
             elif event.key == pygame.K_DELETE or event.key == pygame.K_BACKSPACE:
                 x, y = pygame.mouse.get_pos()
                 bob_to_delete = self.engine.get_bob_at(x, y)
+                box_to_delete = self.engine.get_box_at(x, y) if not bob_to_delete else None
                 if bob_to_delete and not self.engine.running:
                     if self.debug_panel.selected_object == bob_to_delete:
                         self.debug_panel.set_selected(None)
                     if self.connecting_bob == bob_to_delete:
                         self.connecting_bob = None
                     self.engine.delete_bob(bob_to_delete)
+                elif box_to_delete and not self.engine.running:
+                    if self.debug_panel.selected_object == box_to_delete:
+                        self.debug_panel.set_selected(None)
+                    self.engine.delete_box(box_to_delete)
 
     def draw_grid(self, surface):
         spacing = 40
@@ -587,13 +656,13 @@ class SimulationUI:
             btn.draw(surface)
 
         mode_text = font_small.render(f"Mode: {self.mode.upper()}", True, (120, 120, 140))
-        surface.blit(mode_text, (300, 22))
+        surface.blit(mode_text, (410, 22))
 
         if self.engine.running:
             status = font_small.render("RUNNING", True, (80, 200, 120))
         else:
             status = font_small.render("PAUSED", True, (255, 107, 107))
-        surface.blit(status, (400, 22))
+        surface.blit(status, (520, 22))
 
         for rod in self.engine.rods:
             x1 = int(rod.bob1.body.position.x)
@@ -617,6 +686,47 @@ class SimulationUI:
 
         mx, my = pygame.mouse.get_pos()
         hovered_bob = self.engine.get_bob_at(mx, my)
+        hovered_box = self.engine.get_box_at(mx, my) if not hovered_bob else None
+
+        for box in self.engine.boxes:
+            cx = box.body.position.x
+            cy = box.body.position.y
+            angle = box.body.orientation
+            hw = box.width / 2
+            hh = box.height / 2
+            
+            cos_a = math.cos(angle)
+            sin_a = math.sin(angle)
+            
+            corners = [
+                (-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)
+            ]
+            rotated = []
+            for lx, ly in corners:
+                rx = cx + lx * cos_a - ly * sin_a
+                ry = cy + lx * sin_a + ly * cos_a
+                rotated.append((rx, ry))
+            
+            is_selected = self.debug_panel.selected_object == box
+            
+            if box == self.engine.dragging_box:
+                color = BOB_SELECTED
+            elif is_selected:
+                color = SELECTED_COLOR
+            elif box == hovered_box:
+                color = BOX_HOVER
+            else:
+                color = BOX_COLOR
+            
+            if is_selected:
+                pygame.draw.polygon(surface, SELECTED_BORDER, rotated, 4)
+            
+            pygame.draw.polygon(surface, color, rotated)
+            pygame.draw.polygon(surface, (255, 255, 255), rotated, 2)
+            
+            if box.pinned:
+                pygame.draw.circle(surface, (255, 255, 255), (int(cx), int(cy)), 6)
+                pygame.draw.circle(surface, (0, 0, 0), (int(cx), int(cy)), 4)
 
         for bob in self.engine.bobs:
             x = int(bob.body.position.x)
@@ -641,6 +751,24 @@ class SimulationUI:
             
             if bob.pinned:
                 pygame.draw.circle(surface, (255, 255, 255), (x, y), 4)
+
+        if self.mode == "force" and self.force_start and self.force_target:
+            sx, sy = self.force_start
+            ex, ey = pygame.mouse.get_pos()
+            dx = ex - sx
+            dy = ey - sy
+            length = (dx * dx + dy * dy) ** 0.5
+            if length > 5:
+                pygame.draw.line(surface, FORCE_COLOR, (sx, sy), (ex, ey), 3)
+                angle = math.atan2(dy, dx)
+                arrow_len = 12
+                arrow_angle = 0.5
+                ax1 = ex - arrow_len * math.cos(angle - arrow_angle)
+                ay1 = ey - arrow_len * math.sin(angle - arrow_angle)
+                ax2 = ex - arrow_len * math.cos(angle + arrow_angle)
+                ay2 = ey - arrow_len * math.sin(angle + arrow_angle)
+                pygame.draw.polygon(surface, FORCE_COLOR, [(ex, ey), (ax1, ay1), (ax2, ay2)])
+                pygame.draw.circle(surface, FORCE_COLOR, (int(sx), int(sy)), 6)
 
         self.debug_panel.draw(surface)
 

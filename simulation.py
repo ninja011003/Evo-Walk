@@ -3,7 +3,10 @@ from engine.templates.body import Body
 from engine.templates.contraint import Contraint
 
 BOB_RADIUS = 12
+BOX_WIDTH = 60
+BOX_HEIGHT = 40
 GRAVITY = Vector(0, 980)
+FORCE_MAGNITUDE = 5000
 
 class Bob:
     _id_counter = 0
@@ -11,17 +14,36 @@ class Bob:
     def __init__(self, x, y, pinned=False):
         Bob._id_counter += 1
         self.id = Bob._id_counter
-        self.body = Body()
-        self.body.position = Vector(x, y)
-        self.body.mass = 0 if pinned else 1
-        self.pinned = pinned
         self.radius = BOB_RADIUS
+        mass = 0 if pinned else 1
+        self.body = Body(
+            mass=mass,
+            position=Vector(x, y),
+            shape="circle",
+            radius=self.radius
+        )
+        self.pinned = pinned
         self.name = f"Bob_{self.id}"
 
     def contains(self, x, y):
         dx = x - self.body.position.x
         dy = y - self.body.position.y
         return (dx * dx + dy * dy) <= (self.radius + 8) ** 2
+
+    def apply_force(self, force):
+        self.body.apply_force(force)
+
+    def apply_torque(self, torque):
+        self.body.apply_torque(torque)
+
+    def apply_point_force(self, force, point):
+        self.body.apply_point_force(force, point)
+
+    def clear_forces(self):
+        self.body.clear_forces()
+
+    def clear_torque(self):
+        self.body.clear_torque()
 
     def get_debug_info(self):
         return {
@@ -37,6 +59,13 @@ class Bob:
             "radius": self.radius,
             "force.x": round(self.body.total_force.x, 2),
             "force.y": round(self.body.total_force.y, 2),
+            "orientation": round(self.body.orientation, 2),
+            "ang_velocity": round(self.body.ang_velocity, 2),
+            "moi": round(self.body.moi, 2),
+            "torque": round(self.body.total_torque, 2),
+            "add_torque": 0.0,
+            "add_force.x": 0.0,
+            "add_force.y": 0.0,
         }
 
     def set_property(self, key, value):
@@ -50,13 +79,125 @@ class Bob:
             self.body.velocity.y = float(value)
         elif key == "mass":
             self.body.mass = float(value)
+            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
             self.pinned = (self.body.mass == 0)
             self.radius = BOB_RADIUS*(self.body.mass/5)
         elif key == "pinned":
             self.pinned = bool(value)
             self.body.mass = 0 if self.pinned else 1
+            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
         elif key == "radius":
             self.radius = max(5, int(value))
+        elif key == "orientation":
+            self.body.orientation = float(value)
+        elif key == "ang_velocity":
+            self.body.ang_velocity = float(value)
+        elif key == "add_torque":
+            self.body.apply_torque(float(value))
+        elif key == "add_force.x":
+            self.body.apply_force(Vector(float(value), 0))
+        elif key == "add_force.y":
+            self.body.apply_force(Vector(0, float(value)))
+
+class Box:
+    _id_counter = 0
+    
+    def __init__(self, x, y, width=BOX_WIDTH, height=BOX_HEIGHT, pinned=False):
+        Box._id_counter += 1
+        self.id = Box._id_counter
+        self.width = width
+        self.height = height
+        mass = 0 if pinned else 2
+        self.body = Body(
+            mass=mass,
+            position=Vector(x, y),
+            shape="rectangle",
+            width=self.width,
+            height=self.height
+        )
+        self.pinned = pinned
+        self.name = f"Box_{self.id}"
+
+    def contains(self, x, y):
+        import math
+        cos_a = math.cos(-self.body.orientation)
+        sin_a = math.sin(-self.body.orientation)
+        dx = x - self.body.position.x
+        dy = y - self.body.position.y
+        local_x = dx * cos_a - dy * sin_a
+        local_y = dx * sin_a + dy * cos_a
+        return abs(local_x) <= self.width / 2 + 5 and abs(local_y) <= self.height / 2 + 5
+
+    def apply_force(self, force):
+        self.body.apply_force(force)
+
+    def apply_torque(self, torque):
+        self.body.apply_torque(torque)
+
+    def apply_point_force(self, force, point):
+        self.body.apply_point_force(force, point)
+
+    def clear_forces(self):
+        self.body.clear_forces()
+
+    def clear_torque(self):
+        self.body.clear_torque()
+
+    def get_debug_info(self):
+        return {
+            "type": "Box",
+            "id": self.id,
+            "name": self.name,
+            "position.x": round(self.body.position.x, 2),
+            "position.y": round(self.body.position.y, 2),
+            "velocity.x": round(self.body.velocity.x, 2),
+            "velocity.y": round(self.body.velocity.y, 2),
+            "mass": self.body.mass,
+            "pinned": self.pinned,
+            "width": self.width,
+            "height": self.height,
+            "force.x": round(self.body.total_force.x, 2),
+            "force.y": round(self.body.total_force.y, 2),
+            "orientation": round(self.body.orientation, 2),
+            "ang_velocity": round(self.body.ang_velocity, 2),
+            "moi": round(self.body.moi, 2),
+            "torque": round(self.body.total_torque, 2),
+            "add_torque": 0.0,
+            "add_force.x": 0.0,
+            "add_force.y": 0.0,
+        }
+
+    def set_property(self, key, value):
+        if key == "position.x":
+            self.body.position.x = float(value)
+        elif key == "position.y":
+            self.body.position.y = float(value)
+        elif key == "velocity.x":
+            self.body.velocity.x = float(value)
+        elif key == "velocity.y":
+            self.body.velocity.y = float(value)
+        elif key == "mass":
+            self.body.mass = float(value)
+            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
+            self.pinned = (self.body.mass == 0)
+        elif key == "pinned":
+            self.pinned = bool(value)
+            self.body.mass = 0 if self.pinned else 2
+            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
+        elif key == "width":
+            self.width = max(10, float(value))
+        elif key == "height":
+            self.height = max(10, float(value))
+        elif key == "orientation":
+            self.body.orientation = float(value)
+        elif key == "ang_velocity":
+            self.body.ang_velocity = float(value)
+        elif key == "add_torque":
+            self.body.apply_torque(float(value))
+        elif key == "add_force.x":
+            self.body.apply_force(Vector(float(value), 0))
+        elif key == "add_force.y":
+            self.body.apply_force(Vector(0, float(value)))
 
 class Rod:
     _id_counter = 0
@@ -87,13 +228,13 @@ class Rod:
         dist = ((x - proj_x) ** 2 + (y - proj_y) ** 2) ** 0.5
         return dist <= 8
 
-    def get_current_length(self):
+    def cur_length(self):
         dx = self.bob2.body.position.x - self.bob1.body.position.x
         dy = self.bob2.body.position.y - self.bob1.body.position.y
         return (dx * dx + dy * dy) ** 0.5
 
     def get_debug_info(self):
-        current_len = self.get_current_length()
+        current_len = self.cur_length()
         return {
             "type": "Rod",
             "id": self.id,
@@ -127,15 +268,48 @@ class SimulationEngine:
         self.width = width
         self.height = height
         self.bobs = []
+        self.boxes = []
         self.rods = []
         self.running = False
         self.iterations = 8
         self.dragging_bob = None
+        self.dragging_box = None
 
     def create_bob(self, x, y, pinned=False):
         bob = Bob(x, y, pinned)
         self.bobs.append(bob)
         return bob
+
+    def create_box(self, x, y, width=BOX_WIDTH, height=BOX_HEIGHT, pinned=False):
+        box = Box(x, y, width, height, pinned)
+        self.boxes.append(box)
+        return box
+
+    def delete_box(self, box):
+        if box in self.boxes:
+            self.boxes.remove(box)
+
+    def get_box_at(self, x, y):
+        for box in reversed(self.boxes):
+            if box.contains(x, y):
+                return box
+        return None
+
+    def body_at(self, x, y):
+        bob = self.get_bob_at(x, y)
+        if bob:
+            return bob
+        box = self.get_box_at(x, y)
+        if box:
+            return box
+        return None
+
+    def force_at(self, x, y, fx, fy):
+        body = self.body_at(x, y)
+        if body:
+            body.body.apply_point_force(Vector(fx, fy), Vector(x, y))
+            return body
+        return None
 
     def create_rod(self, bob1, bob2):
         for rod in self.rods:
@@ -163,21 +337,33 @@ class SimulationEngine:
                 return rod
         return None
 
-    def toggle_pin(self, bob):
-        bob.pinned = not bob.pinned
-        bob.body.mass = 0 if bob.pinned else 1
+    def toggle_pin(self, obj):
+        obj.pinned = not obj.pinned
+        default_mass = 1 if isinstance(obj, Bob) else 2
+        obj.body.mass = 0 if obj.pinned else default_mass
+        obj.body.inv_mass = 1/obj.body.mass if obj.body.mass > 0 else 0
 
-    def set_dragging(self, bob):
-        self.dragging_bob = bob
+    def set_dragging(self, obj):
+        if isinstance(obj, Bob):
+            self.dragging_bob = obj
+        elif isinstance(obj, Box):
+            self.dragging_box = obj
 
-    def release_dragging(self):
+    def release(self):
         self.dragging_bob = None
+        self.dragging_box = None
 
-    def move_bob(self, bob, x, y):
-        bob.body.position.x = x
-        bob.body.position.y = y
+    def move(self, obj, x, y):
+        obj.body.position.x = x
+        obj.body.position.y = y
         if self.running:
-            bob.body.velocity = Vector(0, 0)
+            obj.body.velocity = Vector(0, 0)
+            obj.body.ang_velocity = 0.0
+
+    def clear_forces(self):
+        for bob in self.bobs:
+            bob.body.clear_forces()
+            bob.body.clear_torque()
 
     def start(self):
         self.running = True
@@ -189,11 +375,20 @@ class SimulationEngine:
         self.running = not self.running
 
     def clear(self):
+        for bob in self.bobs:
+            bob.body.clear_forces()
+            bob.body.clear_torque()
+        for box in self.boxes:
+            box.body.clear_forces()
+            box.body.clear_torque()
         self.bobs = []
+        self.boxes = []
         self.rods = []
         self.running = False
         self.dragging_bob = None
+        self.dragging_box = None
         Bob._id_counter = 0
+        Box._id_counter = 0
         Rod._id_counter = 0
 
     def update(self, dt):
@@ -202,11 +397,19 @@ class SimulationEngine:
         
         for bob in self.bobs:
             if bob != self.dragging_bob and not bob.pinned:
-                bob.body.apply_force(Vector(GRAVITY.x * bob.body.mass, GRAVITY.y * bob.body.mass))
+                bob.body.apply_point_force(Vector(GRAVITY.x * bob.body.mass, GRAVITY.y * bob.body.mass), bob.body.position)
+
+        for box in self.boxes:
+            if box != self.dragging_box and not box.pinned:
+                box.body.apply_point_force(Vector(GRAVITY.x * box.body.mass, GRAVITY.y * box.body.mass), box.body.position)
 
         for bob in self.bobs:
             if bob != self.dragging_bob:
                 bob.body.integrate(dt)
+
+        for box in self.boxes:
+            if box != self.dragging_box:
+                box.body.integrate(dt)
 
         for _ in range(self.iterations):
             for rod in self.rods:
@@ -223,12 +426,26 @@ class SimulationEngine:
                 bob.body.position.x = self.width - BOB_RADIUS
                 bob.body.velocity.x *= -0.5
 
+        for box in self.boxes:
+            half_h = box.height / 2
+            half_w = box.width / 2
+            if box.body.position.y > self.height - half_h:
+                box.body.position.y = self.height - half_h
+                box.body.velocity.y *= -0.5
+            if box.body.position.x < half_w:
+                box.body.position.x = half_w
+                box.body.velocity.x *= -0.5
+            if box.body.position.x > self.width - half_w:
+                box.body.position.x = self.width - half_w
+                box.body.velocity.x *= -0.5
+
     def get_debug_info(self, fps, dt):
         return {
             "type": "Simulation",
             "name": "World",
             "is_running": self.running,
             "bob_count": len(self.bobs),
+            "box_count": len(self.boxes),
             "rod_count": len(self.rods),
             "iterations": self.iterations,
             "gravity.x": GRAVITY.x,
