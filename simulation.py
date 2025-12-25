@@ -88,7 +88,11 @@ class Bob:
             self.pinned = bool(value)
             self.body.mass = 0 if self.pinned else 1
             self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
-            self.body.inv_moi = 0 if self.pinned else (1 / self.body.moi if self.body.moi > 0 else 0)
+            self.body.inv_moi = (
+                0
+                if self.pinned
+                else (1 / self.body.moi if self.body.moi > 0 else 0)
+            )
         elif key == "radius":
             self.radius = max(5, int(value))
             self.body.radius = self.radius
@@ -195,7 +199,11 @@ class Box:
             self.pinned = bool(value)
             self.body.mass = 0 if self.pinned else 2
             self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
-            self.body.inv_moi = 0 if self.pinned else (1 / self.body.moi if self.body.moi > 0 else 0)
+            self.body.inv_moi = (
+                0
+                if self.pinned
+                else (1 / self.body.moi if self.body.moi > 0 else 0)
+            )
         elif key == "width":
             self.width = max(10, float(value))
             self.body.width = self.width
@@ -296,7 +304,9 @@ class SimulationEngine:
         self.dragging_bob = None
         self.dragging_box = None
         self.collision_handler = Collision_Handler()
-        self.ground = self.create_box(width / 2, height - 20, width, 40, pinned=True)
+        self.ground = self.create_box(
+            width / 2, height - 20, width, 40, pinned=True
+        )
 
     def create_bob(self, x, y, pinned=False):
         bob = Bob(x, y, pinned)
@@ -372,7 +382,9 @@ class SimulationEngine:
         default_mass = 1 if isinstance(obj, Bob) else 2
         obj.body.mass = 0 if obj.pinned else default_mass
         obj.body.inv_mass = 1 / obj.body.mass if obj.body.mass > 0 else 0
-        obj.body.inv_moi = 0 if obj.pinned else (1 / obj.body.moi if obj.body.moi > 0 else 0)
+        obj.body.inv_moi = (
+            0 if obj.pinned else (1 / obj.body.moi if obj.body.moi > 0 else 0)
+        )
 
     def set_dragging(self, obj):
         if isinstance(obj, Bob):
@@ -422,7 +434,9 @@ class SimulationEngine:
         Bob._id_counter = 0
         Box._id_counter = 0
         Rod._id_counter = 0
-        self.ground = self.create_box(self.width / 2, self.height - 20, self.width, 40, pinned=True)
+        self.ground = self.create_box(
+            self.width / 2, self.height - 20, self.width, 40, pinned=True
+        )
 
     def update(self, dt):
         if not self.running:

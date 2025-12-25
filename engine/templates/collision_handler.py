@@ -83,8 +83,16 @@ def closest_point_on_segment(point, seg_start, seg_end):
 
 
 class Collision_Handler:
-    def __init__(self, bodies=None, position_correction_percent=0.4, slop=0.01, resting_threshold=0.5):
-        self.bodies = bodies if bodies is not None else [] #fix for shared List problem
+    def __init__(
+        self,
+        bodies=None,
+        position_correction_percent=0.4,
+        slop=0.01,
+        resting_threshold=0.5,
+    ):
+        self.bodies = (
+            bodies if bodies is not None else []
+        )  # fix for shared List problem
         self.position_correction_percent = position_correction_percent
         self.slop = slop
         self.resting_threshold = resting_threshold
@@ -106,9 +114,9 @@ class Collision_Handler:
                 if result is not None:
                     n, penetration, contact_point = result
                     collisions.append((b1, b2, n, penetration, contact_point))
-        
+
         collisions.sort(key=lambda c: c[3], reverse=True)
-        
+
         for b1, b2, n, penetration, contact_point in collisions:
             self.resolve_collision(b1, b2, n, penetration, contact_point)
 
@@ -269,7 +277,9 @@ class Collision_Handler:
 
         return world_normal, penetration, world_contact
 
-    def compute_relative_velocity(self, b1: Body, b2: Body, contact_point: Vector):
+    def compute_relative_velocity(
+        self, b1: Body, b2: Body, contact_point: Vector
+    ):
         r1 = Vector(
             contact_point.x - b1.position.x, contact_point.y - b1.position.y
         )
@@ -298,14 +308,14 @@ class Collision_Handler:
     ):
         rel_vel = self.compute_relative_velocity(b1, b2, contact_point)
         vel_along_normal = rel_vel.x * n.x + rel_vel.y * n.y
-        
+
         if vel_along_normal > 0:
             n = Vector(-n.x, -n.y)
             vel_along_normal = -vel_along_normal
-        
+
         if vel_along_normal >= -1e-6:
             return
-        
+
         self.apply_pos_corr(b1, b2, n, penetration)
         self.apply_impulse(b1, b2, n, contact_point)
 
@@ -375,7 +385,7 @@ class Collision_Handler:
             return
 
         j = -(1 + restitution) * vel_along_normal / inv_mass_sum
-        
+
         if j < 0:
             return
 
