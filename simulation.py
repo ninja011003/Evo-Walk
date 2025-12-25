@@ -323,6 +323,7 @@ class SimulationEngine:
         return box
 
     def delete_box(self, box):
+        self.rods = [r for r in self.rods if r.bob1 != box and r.bob2 != box]
         if box in self.boxes:
             self.boxes.remove(box)
             self.collision_handler.remove_body(box.body)

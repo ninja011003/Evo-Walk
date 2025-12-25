@@ -525,7 +525,7 @@ class SimulationUI:
         self.clock = pygame.time.Clock()
 
         self.mode = "bob"
-        self.connecting_bob = None
+        self.connecting_body = None
         self.current_fps = 60
         self.current_dt = 0
         self.force_start = None
@@ -646,7 +646,7 @@ class SimulationUI:
         self.engine.clear()
         self.start_btn.text = "Start"
         self.start_btn.active = False
-        self.connecting_bob = None
+        self.connecting_body = None
         self.force_start = None
         self.force_target = None
         self.debug_panel.set_selected(None)
@@ -732,16 +732,16 @@ class SimulationUI:
                         new_bob = self.engine.create_bob(x, y, pinned=True)
                         self.debug_panel.set_selected(new_bob)
                 elif self.mode == "rod":
-                    if clicked_bob:
-                        if self.connecting_bob is None:
-                            self.connecting_bob = clicked_bob
-                        elif self.connecting_bob != clicked_bob:
+                    if clicked_body:
+                        if self.connecting_body is None:
+                            self.connecting_body = clicked_body
+                        elif self.connecting_body != clicked_body:
                             new_rod = self.engine.create_rod(
-                                self.connecting_bob, clicked_bob
+                                self.connecting_body, clicked_body
                             )
                             if new_rod:
                                 self.debug_panel.set_selected(new_rod)
-                            self.connecting_bob = None
+                            self.connecting_body = None
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             x, y = event.pos
@@ -798,7 +798,7 @@ class SimulationUI:
 
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                self.connecting_bob = None
+                self.connecting_body = None
                 self.force_start = None
                 self.force_target = None
             elif event.key == pygame.K_SPACE:
@@ -816,12 +816,14 @@ class SimulationUI:
                 if bob_to_delete and not self.engine.running:
                     if self.debug_panel.selected_object == bob_to_delete:
                         self.debug_panel.set_selected(None)
-                    if self.connecting_bob == bob_to_delete:
-                        self.connecting_bob = None
+                    if self.connecting_body == bob_to_delete:
+                        self.connecting_body = None
                     self.engine.delete_bob(bob_to_delete)
                 elif box_to_delete and not self.engine.running:
                     if self.debug_panel.selected_object == box_to_delete:
                         self.debug_panel.set_selected(None)
+                    if self.connecting_body == box_to_delete:
+                        self.connecting_body = None
                     self.engine.delete_box(box_to_delete)
 
     def draw_grid(self, surface):
@@ -876,10 +878,10 @@ class SimulationUI:
                 )
             pygame.draw.line(surface, color, (x1, y1), (x2, y2), width)
 
-        if self.connecting_bob:
+        if self.connecting_body:
             mx, my = pygame.mouse.get_pos()
-            x1 = int(self.connecting_bob.body.position.x)
-            y1 = int(self.connecting_bob.body.position.y)
+            x1 = int(self.connecting_body.body.position.x)
+            y1 = int(self.connecting_body.body.position.y)
             pygame.draw.line(surface, (80, 80, 100), (x1, y1), (mx, my), 2)
 
         mx, my = pygame.mouse.get_pos()
@@ -907,7 +909,7 @@ class SimulationUI:
 
             is_selected = self.debug_panel.selected_object == box
 
-            if box == self.engine.dragging_box:
+            if box == self.engine.dragging_box or box == self.connecting_body:
                 color = BOB_SELECTED
             elif is_selected:
                 color = SELECTED_COLOR
@@ -934,7 +936,7 @@ class SimulationUI:
 
             is_selected = self.debug_panel.selected_object == bob
 
-            if bob == self.engine.dragging_bob or bob == self.connecting_bob:
+            if bob == self.engine.dragging_bob or bob == self.connecting_body:
                 color = BOB_SELECTED
             elif is_selected:
                 color = SELECTED_COLOR
