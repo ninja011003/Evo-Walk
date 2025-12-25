@@ -15,6 +15,8 @@ class Body:
         radius: float = None,
         height: float = None,
         width: float = None,
+        restitution: float = 0.3,
+        friction: float = 0.5,
     ):
         self.shape = shape
         self.radius = radius
@@ -25,8 +27,9 @@ class Body:
         self.mass = mass
         self.inv_mass = 1 / mass if mass > 0 else 0
         self.total_force = Vector(0, 0)
+        self.restitution = restitution
+        self.friction = friction
 
-        # for rotational [physics]
         self.orientation = orientation
         self.ang_velocity: float = 0.0
         self.moi = compute_moi(
