@@ -415,29 +415,29 @@ class SimulationEngine:
             for rod in self.rods:
                 rod.constraint.solve()
 
-        for bob in self.bobs:
-            if bob.body.position.y > self.height - BOB_RADIUS:
-                bob.body.position.y = self.height - BOB_RADIUS
-                bob.body.velocity.y *= -0.5
-            if bob.body.position.x < BOB_RADIUS:
-                bob.body.position.x = BOB_RADIUS
-                bob.body.velocity.x *= -0.5
-            if bob.body.position.x > self.width - BOB_RADIUS:
-                bob.body.position.x = self.width - BOB_RADIUS
-                bob.body.velocity.x *= -0.5
+        # for bob in self.bobs:
+        #     if bob.body.position.y > self.height - BOB_RADIUS:
+        #         bob.body.position.y = self.height - BOB_RADIUS
+        #         bob.body.velocity.y *= -0.5
+        #     if bob.body.position.x < BOB_RADIUS:
+        #         bob.body.position.x = BOB_RADIUS
+        #         bob.body.velocity.x *= -0.5
+        #     if bob.body.position.x > self.width - BOB_RADIUS:
+        #         bob.body.position.x = self.width - BOB_RADIUS
+        #         bob.body.velocity.x *= -0.5
 
-        for box in self.boxes:
-            half_h = box.height / 2
-            half_w = box.width / 2
-            if box.body.position.y > self.height - half_h:
-                box.body.position.y = self.height - half_h
-                box.body.velocity.y *= -0.5
-            if box.body.position.x < half_w:
-                box.body.position.x = half_w
-                box.body.velocity.x *= -0.5
-            if box.body.position.x > self.width - half_w:
-                box.body.position.x = self.width - half_w
-                box.body.velocity.x *= -0.5
+        # for box in self.boxes:
+        #     half_h = box.height / 2
+        #     half_w = box.width / 2
+        #     if box.body.position.y > self.height - half_h:
+        #         box.body.position.y = self.height - half_h
+        #         box.body.velocity.y *= -0.5
+        #     if box.body.position.x < half_w:
+        #         box.body.position.x = half_w
+        #         box.body.velocity.x *= -0.5
+        #     if box.body.position.x > self.width - half_w:
+        #         box.body.position.x = self.width - half_w
+        #         box.body.velocity.x *= -0.5
 
     def get_debug_info(self, fps, dt):
         return {
