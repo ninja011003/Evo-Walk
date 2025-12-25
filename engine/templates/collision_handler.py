@@ -83,8 +83,8 @@ def closest_point_on_segment(point, seg_start, seg_end):
 
 
 class Collision_Handler:
-    def __init__(self, bodies=[], position_correction_percent=0.4, slop=0.01, resting_threshold=0.5):
-        self.bodies = bodies
+    def __init__(self, bodies=None, position_correction_percent=0.4, slop=0.01, resting_threshold=0.5):
+        self.bodies = bodies if bodies is not None else [] #fix for shared List problem
         self.position_correction_percent = position_correction_percent
         self.slop = slop
         self.resting_threshold = resting_threshold
