@@ -1,6 +1,7 @@
 from engine.templates.vector import Vector
 from engine.templates.body import Body
 from engine.templates.contraint import Contraint
+from engine.templates.collision_handler import Collision_Handler
 
 BOB_RADIUS = 12
 BOX_WIDTH = 60
@@ -21,6 +22,8 @@ class Bob:
             mass=mass, position=Vector(x, y), shape="circle", radius=self.radius
         )
         self.pinned = pinned
+        if self.pinned:
+            self.body.inv_moi = 0
         self.name = f"Bob_{self.id}"
 
     def contains(self, x, y):
@@ -80,12 +83,15 @@ class Bob:
             self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
             self.pinned = self.body.mass == 0
             self.radius = BOB_RADIUS * (self.body.mass / 5)
+            self.body.radius = self.radius
         elif key == "pinned":
             self.pinned = bool(value)
             self.body.mass = 0 if self.pinned else 1
             self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
+            self.body.inv_moi = 0 if self.pinned else (1 / self.body.moi if self.body.moi > 0 else 0)
         elif key == "radius":
             self.radius = max(5, int(value))
+            self.body.radius = self.radius
         elif key == "orientation":
             self.body.orientation = float(value)
         elif key == "ang_velocity":
@@ -115,6 +121,8 @@ class Box:
             height=self.height,
         )
         self.pinned = pinned
+        if self.pinned:
+            self.body.inv_moi = 0
         self.name = f"Box_{self.id}"
 
     def contains(self, x, y):
@@ -187,10 +195,13 @@ class Box:
             self.pinned = bool(value)
             self.body.mass = 0 if self.pinned else 2
             self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
+            self.body.inv_moi = 0 if self.pinned else (1 / self.body.moi if self.body.moi > 0 else 0)
         elif key == "width":
             self.width = max(10, float(value))
+            self.body.width = self.width
         elif key == "height":
             self.height = max(10, float(value))
+            self.body.height = self.height
         elif key == "orientation":
             self.body.orientation = float(value)
         elif key == "ang_velocity":
@@ -284,10 +295,13 @@ class SimulationEngine:
         self.iterations = 8
         self.dragging_bob = None
         self.dragging_box = None
+        self.collision_handler = Collision_Handler()
+        self.ground = self.create_box(width / 2, height - 20, width, 40, pinned=True)
 
     def create_bob(self, x, y, pinned=False):
         bob = Bob(x, y, pinned)
         self.bobs.append(bob)
+        self.collision_handler.add_body(bob.body)
         return bob
 
     def create_box(
@@ -295,11 +309,13 @@ class SimulationEngine:
     ):
         box = Box(x, y, width, height, pinned)
         self.boxes.append(box)
+        self.collision_handler.add_body(box.body)
         return box
 
     def delete_box(self, box):
         if box in self.boxes:
             self.boxes.remove(box)
+            self.collision_handler.remove_body(box.body)
 
     def get_box_at(self, x, y):
         for box in reversed(self.boxes):
@@ -337,6 +353,7 @@ class SimulationEngine:
         self.rods = [r for r in self.rods if r.bob1 != bob and r.bob2 != bob]
         if bob in self.bobs:
             self.bobs.remove(bob)
+            self.collision_handler.remove_body(bob.body)
 
     def get_bob_at(self, x, y):
         for bob in reversed(self.bobs):
@@ -355,6 +372,7 @@ class SimulationEngine:
         default_mass = 1 if isinstance(obj, Bob) else 2
         obj.body.mass = 0 if obj.pinned else default_mass
         obj.body.inv_mass = 1 / obj.body.mass if obj.body.mass > 0 else 0
+        obj.body.inv_moi = 0 if obj.pinned else (1 / obj.body.moi if obj.body.moi > 0 else 0)
 
     def set_dragging(self, obj):
         if isinstance(obj, Bob):
@@ -400,9 +418,11 @@ class SimulationEngine:
         self.running = False
         self.dragging_bob = None
         self.dragging_box = None
+        self.collision_handler = Collision_Handler()
         Bob._id_counter = 0
         Box._id_counter = 0
         Rod._id_counter = 0
+        self.ground = self.create_box(self.width / 2, self.height - 20, self.width, 40, pinned=True)
 
     def update(self, dt):
         if not self.running:
@@ -437,6 +457,8 @@ class SimulationEngine:
         for _ in range(self.iterations):
             for rod in self.rods:
                 rod.constraint.solve()
+
+        self.collision_handler.update()
 
         # for bob in self.bobs:
         #     if bob.body.position.y > self.height - BOB_RADIUS:

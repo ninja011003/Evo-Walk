@@ -83,10 +83,11 @@ def closest_point_on_segment(point, seg_start, seg_end):
 
 
 class Collision_Handler:
-    def __init__(self, bodies=[], position_correction_percent=0.8, slop=0.01):
+    def __init__(self, bodies=[], position_correction_percent=0.4, slop=0.01, resting_threshold=0.5):
         self.bodies = bodies
         self.position_correction_percent = position_correction_percent
         self.slop = slop
+        self.resting_threshold = resting_threshold
 
     def add_body(self, body: Body):
         self.bodies.append(body)
@@ -96,7 +97,7 @@ class Collision_Handler:
             self.bodies.remove(body)
 
     def update(self):
-        # TODO: Implement gradient grid based detection , this is a piece of shit
+        collisions = []
         for i in range(len(self.bodies)):
             for j in range(i + 1, len(self.bodies)):
                 b1 = self.bodies[i]
@@ -104,9 +105,12 @@ class Collision_Handler:
                 result = self.detect_collision(b1, b2)
                 if result is not None:
                     n, penetration, contact_point = result
-                    self.resolve_collision(
-                        b1, b2, n, penetration, contact_point
-                    )
+                    collisions.append((b1, b2, n, penetration, contact_point))
+        
+        collisions.sort(key=lambda c: c[3], reverse=True)
+        
+        for b1, b2, n, penetration, contact_point in collisions:
+            self.resolve_collision(b1, b2, n, penetration, contact_point)
 
     def detect_collision(self, b1: Body, b2: Body):
         p1, p2 = b1.position, b2.position
@@ -265,6 +269,25 @@ class Collision_Handler:
 
         return world_normal, penetration, world_contact
 
+    def compute_relative_velocity(self, b1: Body, b2: Body, contact_point: Vector):
+        r1 = Vector(
+            contact_point.x - b1.position.x, contact_point.y - b1.position.y
+        )
+        r2 = Vector(
+            contact_point.x - b2.position.x, contact_point.y - b2.position.y
+        )
+        v1_at_contact = Vector(
+            b1.velocity.x - b1.ang_velocity * r1.y,
+            b1.velocity.y + b1.ang_velocity * r1.x,
+        )
+        v2_at_contact = Vector(
+            b2.velocity.x - b2.ang_velocity * r2.y,
+            b2.velocity.y + b2.ang_velocity * r2.x,
+        )
+        return Vector(
+            v2_at_contact.x - v1_at_contact.x, v2_at_contact.y - v1_at_contact.y
+        )
+
     def resolve_collision(
         self,
         b1: Body,
@@ -273,6 +296,16 @@ class Collision_Handler:
         penetration: float,
         contact_point: Vector,
     ):
+        rel_vel = self.compute_relative_velocity(b1, b2, contact_point)
+        vel_along_normal = rel_vel.x * n.x + rel_vel.y * n.y
+        
+        if vel_along_normal > 0:
+            n = Vector(-n.x, -n.y)
+            vel_along_normal = -vel_along_normal
+        
+        if vel_along_normal >= -1e-6:
+            return
+        
         self.apply_pos_corr(b1, b2, n, penetration)
         self.apply_impulse(b1, b2, n, contact_point)
 
@@ -299,7 +332,6 @@ class Collision_Handler:
     def apply_impulse(
         self, b1: Body, b2: Body, n: Vector, contact_point: Vector
     ):
-        restitution = math.sqrt(b1.restitution * b2.restitution)
         friction = math.sqrt(b1.friction * b2.friction)
 
         r1 = Vector(
@@ -324,8 +356,10 @@ class Collision_Handler:
 
         vel_along_normal = rel_vel.x * n.x + rel_vel.y * n.y
 
-        if vel_along_normal > 0:
-            return
+        if abs(vel_along_normal) < self.resting_threshold:
+            restitution = 0.0
+        else:
+            restitution = math.sqrt(b1.restitution * b2.restitution)
 
         r1_cross_n = r1.x * n.y - r1.y * n.x
         r2_cross_n = r2.x * n.y - r2.y * n.x
@@ -341,6 +375,9 @@ class Collision_Handler:
             return
 
         j = -(1 + restitution) * vel_along_normal / inv_mass_sum
+        
+        if j < 0:
+            return
 
         impulse = Vector(n.x * j, n.y * j)
 
@@ -382,12 +419,13 @@ class Collision_Handler:
 
         jt = -vel_along_tangent / inv_mass_sum_tangent
 
-        if abs(jt) < abs(j) * friction:
-            friction_impulse = Vector(tangent.x * jt, tangent.y * jt)
-        else:
-            friction_impulse = Vector(
-                -tangent.x * j * friction, -tangent.y * j * friction
-            )
+        max_friction = j * friction
+        if jt > max_friction:
+            jt = max_friction
+        elif jt < -max_friction:
+            jt = -max_friction
+
+        friction_impulse = Vector(tangent.x * jt, tangent.y * jt)
 
         b1.velocity.x -= friction_impulse.x * b1.inv_mass
         b1.velocity.y -= friction_impulse.y * b1.inv_mass
