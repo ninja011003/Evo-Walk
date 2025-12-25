@@ -8,6 +8,12 @@ A 2D rigid body physics engine built from scratch in Python, designed as a found
 
 ---
 
+## Demo
+
+![Evo-Walk Demo](demo.png)
+
+---
+
 ## Features
 
 - **Rigid Body Physics** — Circles (Bobs) and Rectangles (Boxes) with mass, velocity, and rotational dynamics
