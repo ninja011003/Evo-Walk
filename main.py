@@ -3,10 +3,11 @@ import sys
 from simulation import SimulationEngine
 from vizualize import SimulationUI, WIDTH, HEIGHT
 
+
 def main():
     engine = SimulationEngine(WIDTH, HEIGHT)
     ui = SimulationUI(engine)
-    
+
     running = True
     while running:
         for event in pygame.event.get():
@@ -21,6 +22,7 @@ def main():
 
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()

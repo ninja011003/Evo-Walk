@@ -8,19 +8,17 @@ BOX_HEIGHT = 40
 GRAVITY = Vector(0, 980)
 FORCE_MAGNITUDE = 5000
 
+
 class Bob:
     _id_counter = 0
-    
+
     def __init__(self, x, y, pinned=False):
         Bob._id_counter += 1
         self.id = Bob._id_counter
         self.radius = BOB_RADIUS
         mass = 0 if pinned else 1
         self.body = Body(
-            mass=mass,
-            position=Vector(x, y),
-            shape="circle",
-            radius=self.radius
+            mass=mass, position=Vector(x, y), shape="circle", radius=self.radius
         )
         self.pinned = pinned
         self.name = f"Bob_{self.id}"
@@ -79,13 +77,13 @@ class Bob:
             self.body.velocity.y = float(value)
         elif key == "mass":
             self.body.mass = float(value)
-            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
-            self.pinned = (self.body.mass == 0)
-            self.radius = BOB_RADIUS*(self.body.mass/5)
+            self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
+            self.pinned = self.body.mass == 0
+            self.radius = BOB_RADIUS * (self.body.mass / 5)
         elif key == "pinned":
             self.pinned = bool(value)
             self.body.mass = 0 if self.pinned else 1
-            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
+            self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
         elif key == "radius":
             self.radius = max(5, int(value))
         elif key == "orientation":
@@ -99,9 +97,10 @@ class Bob:
         elif key == "add_force.y":
             self.body.apply_force(Vector(0, float(value)))
 
+
 class Box:
     _id_counter = 0
-    
+
     def __init__(self, x, y, width=BOX_WIDTH, height=BOX_HEIGHT, pinned=False):
         Box._id_counter += 1
         self.id = Box._id_counter
@@ -113,20 +112,24 @@ class Box:
             position=Vector(x, y),
             shape="rectangle",
             width=self.width,
-            height=self.height
+            height=self.height,
         )
         self.pinned = pinned
         self.name = f"Box_{self.id}"
 
     def contains(self, x, y):
         import math
+
         cos_a = math.cos(-self.body.orientation)
         sin_a = math.sin(-self.body.orientation)
         dx = x - self.body.position.x
         dy = y - self.body.position.y
         local_x = dx * cos_a - dy * sin_a
         local_y = dx * sin_a + dy * cos_a
-        return abs(local_x) <= self.width / 2 + 5 and abs(local_y) <= self.height / 2 + 5
+        return (
+            abs(local_x) <= self.width / 2 + 5
+            and abs(local_y) <= self.height / 2 + 5
+        )
 
     def apply_force(self, force):
         self.body.apply_force(force)
@@ -178,12 +181,12 @@ class Box:
             self.body.velocity.y = float(value)
         elif key == "mass":
             self.body.mass = float(value)
-            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
-            self.pinned = (self.body.mass == 0)
+            self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
+            self.pinned = self.body.mass == 0
         elif key == "pinned":
             self.pinned = bool(value)
             self.body.mass = 0 if self.pinned else 2
-            self.body.inv_mass = 1/self.body.mass if self.body.mass > 0 else 0
+            self.body.inv_mass = 1 / self.body.mass if self.body.mass > 0 else 0
         elif key == "width":
             self.width = max(10, float(value))
         elif key == "height":
@@ -199,9 +202,10 @@ class Box:
         elif key == "add_force.y":
             self.body.apply_force(Vector(0, float(value)))
 
+
 class Rod:
     _id_counter = 0
-    
+
     def __init__(self, bob1, bob2):
         Rod._id_counter += 1
         self.id = Rod._id_counter
@@ -216,15 +220,20 @@ class Rod:
     def contains(self, x, y):
         x1, y1 = self.bob1.body.position.x, self.bob1.body.position.y
         x2, y2 = self.bob2.body.position.x, self.bob2.body.position.y
-        
+
         line_len = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
         if line_len == 0:
             return False
-        
-        t = max(0, min(1, ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / (line_len ** 2)))
+
+        t = max(
+            0,
+            min(
+                1, ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / (line_len**2)
+            ),
+        )
         proj_x = x1 + t * (x2 - x1)
         proj_y = y1 + t * (y2 - y1)
-        
+
         dist = ((x - proj_x) ** 2 + (y - proj_y) ** 2) ** 0.5
         return dist <= 8
 
@@ -263,6 +272,7 @@ class Rod:
         elif key == "bob2.y":
             self.bob2.body.position.y = float(value)
 
+
 class SimulationEngine:
     def __init__(self, width, height):
         self.width = width
@@ -280,7 +290,9 @@ class SimulationEngine:
         self.bobs.append(bob)
         return bob
 
-    def create_box(self, x, y, width=BOX_WIDTH, height=BOX_HEIGHT, pinned=False):
+    def create_box(
+        self, x, y, width=BOX_WIDTH, height=BOX_HEIGHT, pinned=False
+    ):
         box = Box(x, y, width, height, pinned)
         self.boxes.append(box)
         return box
@@ -313,8 +325,9 @@ class SimulationEngine:
 
     def create_rod(self, bob1, bob2):
         for rod in self.rods:
-            if (rod.bob1 == bob1 and rod.bob2 == bob2) or \
-               (rod.bob1 == bob2 and rod.bob2 == bob1):
+            if (rod.bob1 == bob1 and rod.bob2 == bob2) or (
+                rod.bob1 == bob2 and rod.bob2 == bob1
+            ):
                 return None
         rod = Rod(bob1, bob2)
         self.rods.append(rod)
@@ -341,7 +354,7 @@ class SimulationEngine:
         obj.pinned = not obj.pinned
         default_mass = 1 if isinstance(obj, Bob) else 2
         obj.body.mass = 0 if obj.pinned else default_mass
-        obj.body.inv_mass = 1/obj.body.mass if obj.body.mass > 0 else 0
+        obj.body.inv_mass = 1 / obj.body.mass if obj.body.mass > 0 else 0
 
     def set_dragging(self, obj):
         if isinstance(obj, Bob):
@@ -394,14 +407,24 @@ class SimulationEngine:
     def update(self, dt):
         if not self.running:
             return
-        
+
         for bob in self.bobs:
             if bob != self.dragging_bob and not bob.pinned:
-                bob.body.apply_point_force(Vector(GRAVITY.x * bob.body.mass, GRAVITY.y * bob.body.mass), bob.body.position)
+                bob.body.apply_point_force(
+                    Vector(
+                        GRAVITY.x * bob.body.mass, GRAVITY.y * bob.body.mass
+                    ),
+                    bob.body.position,
+                )
 
         for box in self.boxes:
             if box != self.dragging_box and not box.pinned:
-                box.body.apply_point_force(Vector(GRAVITY.x * box.body.mass, GRAVITY.y * box.body.mass), box.body.position)
+                box.body.apply_point_force(
+                    Vector(
+                        GRAVITY.x * box.body.mass, GRAVITY.y * box.body.mass
+                    ),
+                    box.body.position,
+                )
 
         for bob in self.bobs:
             if bob != self.dragging_bob:
@@ -462,4 +485,3 @@ class SimulationEngine:
             GRAVITY = Vector(float(value), GRAVITY.y)
         elif key == "gravity.y":
             GRAVITY = Vector(GRAVITY.x, float(value))
-
