@@ -1,4 +1,4 @@
-# Human Locomotion
+# Evo Walk
 
 A 2D rigid body physics engine built from scratch in Python, designed as a foundation for neural network-based walking simulations.
 
