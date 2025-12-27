@@ -1,0 +1,177 @@
+{
+  "Body_v1": {
+    "bobs": [
+      {
+        "x": 480,
+        "y": 183,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 480,
+        "y": 263,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 480,
+        "y": 383,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 401,
+        "y": 301,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 400,
+        "y": 383,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 560,
+        "y": 303,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 560,
+        "y": 383,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 439,
+        "y": 463,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 520,
+        "y": 463,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 441,
+        "y": 542,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 520,
+        "y": 543,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      }
+    ],
+    "boxes": [],
+    "rods": [
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 0,
+        "bob2_type": "bob",
+        "bob2_idx": 1,
+        "length": 80.0
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 1,
+        "bob2_type": "bob",
+        "bob2_idx": 3,
+        "length": 87.66413177577246
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 3,
+        "bob2_type": "bob",
+        "bob2_idx": 4,
+        "length": 82.00609733428362
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 1,
+        "bob2_type": "bob",
+        "bob2_idx": 5,
+        "length": 89.44271909999159
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 5,
+        "bob2_type": "bob",
+        "bob2_idx": 6,
+        "length": 80.0
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 2,
+        "bob2_type": "bob",
+        "bob2_idx": 7,
+        "length": 89.89438247187641
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 2,
+        "bob2_type": "bob",
+        "bob2_idx": 8,
+        "length": 89.44271909999159
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 7,
+        "bob2_type": "bob",
+        "bob2_idx": 9,
+        "length": 79.02531240052139
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 8,
+        "bob2_type": "bob",
+        "bob2_idx": 10,
+        "length": 80.0
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 1,
+        "bob2_type": "bob",
+        "bob2_idx": 2,
+        "length": 120.0
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 3,
+        "bob2_type": "bob",
+        "bob2_idx": 5,
+        "length": 159.0125781188394
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 3,
+        "bob2_type": "bob",
+        "bob2_idx": 2,
+        "length": 113.86395390991831
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 5,
+        "bob2_type": "bob",
+        "bob2_idx": 2,
+        "length": 113.13708498984761
+      }
+    ]
+  }
+}

@@ -1,11 +1,15 @@
+import json
+import os
 from engine.templates.vector import Vector
 from engine.templates.body import Body
 from engine.templates.contraint import Contraint
 from engine.templates.collision_handler import Collision_Handler
 
-BOB_RADIUS = 12
-BOX_WIDTH = 60
-BOX_HEIGHT = 40
+TEMPLATES_FILE = os.path.join(os.path.dirname(__file__), "templates.json")
+
+BOB_RADIUS = 5
+BOX_WIDTH = 15
+BOX_HEIGHT = 80
 GRAVITY = Vector(0, 980)
 FORCE_MAGNITUDE = 5000
 
@@ -522,3 +526,122 @@ class SimulationEngine:
             GRAVITY = Vector(float(value), GRAVITY.y)
         elif key == "gravity.y":
             GRAVITY = Vector(GRAVITY.x, float(value))
+
+    def serialize(self):
+        bob_map = {}
+        bobs_data = []
+        for i, bob in enumerate(self.bobs):
+            bob_map[bob] = i
+            bobs_data.append({
+                "x": bob.body.position.x,
+                "y": bob.body.position.y,
+                "pinned": bob.pinned,
+                "radius": bob.radius,
+                "mass": bob.body.mass,
+            })
+
+        box_map = {}
+        boxes_data = []
+        for i, box in enumerate(self.boxes):
+            if box == self.ground:
+                continue
+            box_map[box] = i
+            boxes_data.append({
+                "x": box.body.position.x,
+                "y": box.body.position.y,
+                "width": box.width,
+                "height": box.height,
+                "pinned": box.pinned,
+                "orientation": box.body.orientation,
+            })
+
+        rods_data = []
+        for rod in self.rods:
+            bob1_type = "bob" if rod.bob1 in bob_map else "box"
+            bob2_type = "bob" if rod.bob2 in bob_map else "box"
+            bob1_idx = bob_map.get(rod.bob1, box_map.get(rod.bob1, -1))
+            bob2_idx = bob_map.get(rod.bob2, box_map.get(rod.bob2, -1))
+            if bob1_idx >= 0 and bob2_idx >= 0:
+                rods_data.append({
+                    "bob1_type": bob1_type,
+                    "bob1_idx": bob1_idx,
+                    "bob2_type": bob2_type,
+                    "bob2_idx": bob2_idx,
+                    "length": rod.length,
+                })
+
+        return {
+            "bobs": bobs_data,
+            "boxes": boxes_data,
+            "rods": rods_data,
+        }
+
+    def load_template(self, data, offset_x=0, offset_y=0):
+        bob_map = {}
+        box_map = {}
+
+        for i, bob_data in enumerate(data.get("bobs", [])):
+            bob = self.create_bob(
+                bob_data["x"] + offset_x,
+                bob_data["y"] + offset_y,
+                pinned=bob_data.get("pinned", False)
+            )
+            if "radius" in bob_data:
+                bob.radius = bob_data["radius"]
+                bob.body.radius = bob_data["radius"]
+            if "mass" in bob_data and bob_data["mass"] > 0:
+                bob.body.mass = bob_data["mass"]
+                bob.body.inv_mass = 1 / bob.body.mass
+            bob_map[i] = bob
+
+        for i, box_data in enumerate(data.get("boxes", [])):
+            box = self.create_box(
+                box_data["x"] + offset_x,
+                box_data["y"] + offset_y,
+                width=box_data.get("width", BOX_WIDTH),
+                height=box_data.get("height", BOX_HEIGHT),
+                pinned=box_data.get("pinned", False)
+            )
+            if "orientation" in box_data:
+                box.body.orientation = box_data["orientation"]
+            box_map[i] = box
+
+        for rod_data in data.get("rods", []):
+            bob1_type = rod_data.get("bob1_type", "bob")
+            bob2_type = rod_data.get("bob2_type", "bob")
+            bob1_idx = rod_data["bob1_idx"]
+            bob2_idx = rod_data["bob2_idx"]
+
+            bob1 = bob_map.get(bob1_idx) if bob1_type == "bob" else box_map.get(bob1_idx)
+            bob2 = bob_map.get(bob2_idx) if bob2_type == "bob" else box_map.get(bob2_idx)
+
+            if bob1 and bob2:
+                rod = self.create_rod(bob1, bob2)
+                if rod and "length" in rod_data:
+                    rod.length = rod_data["length"]
+                    rod.constraint.l = rod_data["length"]
+
+
+def load_templates():
+    if os.path.exists(TEMPLATES_FILE):
+        try:
+            with open(TEMPLATES_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+
+def save_template(name, data):
+    templates = load_templates()
+    templates[name] = data
+    with open(TEMPLATES_FILE, "w") as f:
+        json.dump(templates, f, indent=2)
+
+
+def delete_template(name):
+    templates = load_templates()
+    if name in templates:
+        del templates[name]
+        with open(TEMPLATES_FILE, "w") as f:
+            json.dump(templates, f, indent=2)

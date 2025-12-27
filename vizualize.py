@@ -7,6 +7,9 @@ from simulation import (
     BOX_HEIGHT,
     GRAVITY,
     FORCE_MAGNITUDE,
+    load_templates,
+    save_template,
+    delete_template,
 )
 
 pygame.init()
@@ -517,6 +520,279 @@ class DebugPanel:
         surface.blit(panel_surface, self.rect.topleft)
 
 
+class SaveDialog:
+    def __init__(self, x, y, width, height, on_save, on_cancel):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.on_save = on_save
+        self.on_cancel = on_cancel
+        self.visible = False
+        self.text = ""
+        self.cursor_pos = 0
+        self.cursor_visible = True
+        self.cursor_timer = 0
+
+    def show(self):
+        self.visible = True
+        self.text = ""
+        self.cursor_pos = 0
+
+    def hide(self):
+        self.visible = False
+        self.text = ""
+
+    def handle_event(self, event):
+        if not self.visible:
+            return False
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if not self.rect.collidepoint(event.pos):
+                self.hide()
+                return True
+
+            save_btn = pygame.Rect(
+                self.rect.x + self.rect.width - 90,
+                self.rect.y + self.rect.height - 50,
+                70,
+                35
+            )
+            cancel_btn = pygame.Rect(
+                self.rect.x + self.rect.width - 170,
+                self.rect.y + self.rect.height - 50,
+                70,
+                35
+            )
+
+            if save_btn.collidepoint(event.pos) and self.text.strip():
+                self.on_save(self.text.strip())
+                self.hide()
+                return True
+            elif cancel_btn.collidepoint(event.pos):
+                self.hide()
+                return True
+            return True
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                if self.text.strip():
+                    self.on_save(self.text.strip())
+                    self.hide()
+                return True
+            elif event.key == pygame.K_ESCAPE:
+                self.hide()
+                return True
+            elif event.key == pygame.K_BACKSPACE:
+                if self.cursor_pos > 0:
+                    self.text = self.text[:self.cursor_pos - 1] + self.text[self.cursor_pos:]
+                    self.cursor_pos -= 1
+                return True
+            elif event.key == pygame.K_DELETE:
+                if self.cursor_pos < len(self.text):
+                    self.text = self.text[:self.cursor_pos] + self.text[self.cursor_pos + 1:]
+                return True
+            elif event.key == pygame.K_LEFT:
+                self.cursor_pos = max(0, self.cursor_pos - 1)
+                return True
+            elif event.key == pygame.K_RIGHT:
+                self.cursor_pos = min(len(self.text), self.cursor_pos + 1)
+                return True
+            elif event.unicode and event.unicode.isprintable():
+                self.text = self.text[:self.cursor_pos] + event.unicode + self.text[self.cursor_pos:]
+                self.cursor_pos += 1
+                return True
+
+        return False
+
+    def update(self, dt):
+        if not self.visible:
+            return
+        self.cursor_timer += dt
+        if self.cursor_timer >= 0.5:
+            self.cursor_visible = not self.cursor_visible
+            self.cursor_timer = 0
+
+    def draw(self, surface):
+        if not self.visible:
+            return
+
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        surface.blit(overlay, (0, 0))
+
+        panel = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        panel.fill((28, 28, 38, 250))
+        pygame.draw.rect(panel, DEBUG_BORDER, (0, 0, self.rect.width, self.rect.height), 2, border_radius=12)
+
+        title = font_debug_title.render("Save Template", True, DEBUG_HIGHLIGHT)
+        panel.blit(title, (20, 20))
+
+        label = font_debug_label.render("Template Name:", True, DEBUG_LABEL)
+        panel.blit(label, (20, 60))
+
+        input_rect = pygame.Rect(20, 85, self.rect.width - 40, 35)
+        pygame.draw.rect(panel, INPUT_BG, input_rect, border_radius=6)
+        pygame.draw.rect(panel, INPUT_BORDER_ACTIVE, input_rect, 2, border_radius=6)
+
+        text_surface = font_input.render(self.text, True, INPUT_TEXT)
+        panel.blit(text_surface, (input_rect.x + 10, input_rect.y + 9))
+
+        if self.cursor_visible:
+            cursor_x = input_rect.x + 10 + font_input.size(self.text[:self.cursor_pos])[0]
+            pygame.draw.line(panel, INPUT_TEXT, (cursor_x, input_rect.y + 8), (cursor_x, input_rect.y + 27), 2)
+
+        save_btn = pygame.Rect(self.rect.width - 90, self.rect.height - 50, 70, 35)
+        cancel_btn = pygame.Rect(self.rect.width - 170, self.rect.height - 50, 70, 35)
+
+        save_color = BTN_ACTIVE if self.text.strip() else BTN_COLOR
+        pygame.draw.rect(panel, save_color, save_btn, border_radius=6)
+        save_text = font_small.render("Save", True, TEXT_COLOR)
+        panel.blit(save_text, (save_btn.x + 20, save_btn.y + 9))
+
+        pygame.draw.rect(panel, BTN_COLOR, cancel_btn, border_radius=6)
+        cancel_text = font_small.render("Cancel", True, TEXT_COLOR)
+        panel.blit(cancel_text, (cancel_btn.x + 12, cancel_btn.y + 9))
+
+        surface.blit(panel, self.rect.topleft)
+
+
+class TemplatePanel:
+    def __init__(self, x, y, width, height, on_select, on_close):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.on_select = on_select
+        self.on_close = on_close
+        self.visible = False
+        self.templates = {}
+        self.scroll_y = 0
+        self.hovered_template = None
+        self.delete_hovered = None
+
+    def show(self):
+        self.visible = True
+        self.templates = load_templates()
+        self.scroll_y = 0
+
+    def hide(self):
+        self.visible = False
+
+    def toggle(self):
+        if self.visible:
+            self.hide()
+        else:
+            self.show()
+
+    def handle_event(self, event):
+        if not self.visible:
+            return False
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if not self.rect.collidepoint(event.pos):
+                self.hide()
+                return True
+
+            rel_x = event.pos[0] - self.rect.x
+            rel_y = event.pos[1] - self.rect.y + self.scroll_y
+
+            y_offset = 50
+            for name in self.templates.keys():
+                item_rect = pygame.Rect(15, y_offset, self.rect.width - 30, 45)
+                delete_rect = pygame.Rect(self.rect.width - 50, y_offset + 10, 25, 25)
+
+                if delete_rect.collidepoint(rel_x, rel_y):
+                    delete_template(name)
+                    self.templates = load_templates()
+                    return True
+                elif item_rect.collidepoint(rel_x, rel_y):
+                    self.on_select(name, self.templates[name])
+                    self.hide()
+                    return True
+                y_offset += 55
+
+            return True
+
+        if event.type == pygame.MOUSEMOTION:
+            if self.rect.collidepoint(event.pos):
+                rel_x = event.pos[0] - self.rect.x
+                rel_y = event.pos[1] - self.rect.y + self.scroll_y
+
+                self.hovered_template = None
+                self.delete_hovered = None
+                y_offset = 50
+                for name in self.templates.keys():
+                    item_rect = pygame.Rect(15, y_offset, self.rect.width - 30, 45)
+                    delete_rect = pygame.Rect(self.rect.width - 50, y_offset + 10, 25, 25)
+
+                    if delete_rect.collidepoint(rel_x, rel_y):
+                        self.delete_hovered = name
+                    elif item_rect.collidepoint(rel_x, rel_y):
+                        self.hovered_template = name
+                    y_offset += 55
+
+        if event.type == pygame.MOUSEWHEEL and self.rect.collidepoint(pygame.mouse.get_pos()):
+            max_scroll = max(0, len(self.templates) * 55 + 60 - self.rect.height)
+            self.scroll_y = max(0, min(max_scroll, self.scroll_y - event.y * 20))
+            return True
+
+        return False
+
+    def draw(self, surface):
+        if not self.visible:
+            return
+
+        panel = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        panel.fill((28, 28, 38, 245))
+        pygame.draw.rect(panel, DEBUG_BORDER, (0, 0, self.rect.width, self.rect.height), 2, border_radius=12)
+
+        header_rect = pygame.Rect(0, 0, self.rect.width, 45)
+        pygame.draw.rect(panel, (35, 35, 50, 250), header_rect, border_top_left_radius=12, border_top_right_radius=12)
+
+        icon_surface = font_large.render("SAVEs", True, DEBUG_HIGHLIGHT)
+        panel.blit(icon_surface, (15, 12))
+        title = font_debug_title.render("Templates", True, DEBUG_HIGHLIGHT)
+        panel.blit(title, (45, 14))
+
+        pygame.draw.line(panel, DEBUG_BORDER, (0, 45), (self.rect.width, 45), 1)
+
+        content_surface = pygame.Surface((self.rect.width - 4, self.rect.height - 50), pygame.SRCALPHA)
+
+        if not self.templates:
+            empty_text = font_debug.render("No templates saved", True, DEBUG_LABEL)
+            content_surface.blit(empty_text, (20, 30))
+            hint_text = font_debug_label.render("Click Save to create one", True, (70, 70, 90))
+            content_surface.blit(hint_text, (20, 55))
+        else:
+            y_offset = 10 - self.scroll_y
+            for name, data in self.templates.items():
+                if y_offset + 45 > 0 and y_offset < self.rect.height - 50:
+                    item_rect = pygame.Rect(15, y_offset, self.rect.width - 34, 45)
+
+                    if name == self.hovered_template:
+                        pygame.draw.rect(content_surface, (50, 55, 70), item_rect, border_radius=8)
+                    else:
+                        pygame.draw.rect(content_surface, (38, 38, 52), item_rect, border_radius=8)
+
+                    pygame.draw.rect(content_surface, (55, 55, 75), item_rect, 1, border_radius=8)
+
+                    name_text = font_debug.render(name[:20], True, DEBUG_VALUE)
+                    content_surface.blit(name_text, (item_rect.x + 12, item_rect.y + 6))
+
+                    bobs = len(data.get("bobs", []))
+                    boxes = len(data.get("boxes", []))
+                    rods = len(data.get("rods", []))
+                    info = f"{bobs} bobs, {boxes} boxes, {rods} rods"
+                    info_text = font_debug_label.render(info, True, DEBUG_LABEL)
+                    content_surface.blit(info_text, (item_rect.x + 12, item_rect.y + 26))
+
+                    delete_rect = pygame.Rect(item_rect.right - 35, item_rect.y + 10, 25, 25)
+                    delete_color = (255, 80, 80) if name == self.delete_hovered else (120, 80, 80)
+                    pygame.draw.rect(content_surface, delete_color, delete_rect, border_radius=4)
+                    x_text = font_small.render("×", True, (255, 255, 255))
+                    content_surface.blit(x_text, (delete_rect.x + 7, delete_rect.y + 3))
+
+                y_offset += 55
+
+        panel.blit(content_surface, (2, 48))
+        surface.blit(panel, self.rect.topleft)
+
+
 class SimulationUI:
     def __init__(self, engine):
         self.engine = engine
@@ -536,6 +812,24 @@ class SimulationUI:
             TOOLBAR_HEIGHT + 15,
             DEBUG_PANEL_WIDTH,
             HEIGHT - TOOLBAR_HEIGHT - 30,
+        )
+
+        self.save_dialog = SaveDialog(
+            WIDTH // 2 - 175,
+            HEIGHT // 2 - 85,
+            350,
+            170,
+            self.on_save_template,
+            lambda: None
+        )
+
+        self.template_panel = TemplatePanel(
+            WIDTH // 2 - 175,
+            HEIGHT // 2 - 150,
+            350,
+            300,
+            self.on_load_template,
+            lambda: None
         )
 
         self.buttons = []
@@ -559,6 +853,12 @@ class SimulationUI:
         )
         self.force_btn = Button(
             320, btn_y, 70, btn_h, "Force", self.set_force_mode, "ForceButton"
+        )
+        self.save_btn = Button(
+            400, btn_y, 70, btn_h, "Save", self.show_save_dialog, "SaveButton"
+        )
+        self.templates_btn = Button(
+            475, btn_y, 36, btn_h, "Saves", self.toggle_templates, "TemplatesButton"
         )
         self.start_btn = Button(
             WIDTH - 290,
@@ -594,6 +894,8 @@ class SimulationUI:
             self.rod_btn,
             self.pin_btn,
             self.force_btn,
+            self.save_btn,
+            self.templates_btn,
             self.start_btn,
             self.clear_btn,
             self.debug_btn,
@@ -642,6 +944,22 @@ class SimulationUI:
         self.debug_panel.visible = not self.debug_panel.visible
         self.debug_btn.active = self.debug_panel.visible
 
+    def show_save_dialog(self):
+        if len(self.engine.bobs) == 0 and len(self.engine.boxes) <= 1:
+            return
+        self.save_dialog.show()
+
+    def toggle_templates(self):
+        self.template_panel.toggle()
+        self.templates_btn.active = self.template_panel.visible
+
+    def on_save_template(self, name):
+        data = self.engine.serialize()
+        save_template(name, data)
+
+    def on_load_template(self, name, data):
+        self.engine.load_template(data)
+
     def clear_all(self):
         self.engine.clear()
         self.start_btn.text = "Start"
@@ -658,6 +976,15 @@ class SimulationUI:
         return None
 
     def handle_event(self, event):
+        if self.save_dialog.visible:
+            if self.save_dialog.handle_event(event):
+                return
+            return
+
+        if self.template_panel.visible:
+            if self.template_panel.handle_event(event):
+                return
+
         if self.debug_panel.visible and self.debug_panel.handle_event(event):
             return
 
@@ -854,13 +1181,13 @@ class SimulationUI:
         mode_text = font_small.render(
             f"Mode: {self.mode.upper()}", True, (120, 120, 140)
         )
-        surface.blit(mode_text, (410, 22))
+        surface.blit(mode_text, (530, 22))
 
         if self.engine.running:
             status = font_small.render("RUNNING", True, (80, 200, 120))
         else:
             status = font_small.render("PAUSED", True, (255, 107, 107))
-        surface.blit(status, (520, 22))
+        surface.blit(status, (640, 22))
 
         for rod in self.engine.rods:
             x1 = int(rod.bob1.body.position.x)
@@ -980,6 +1307,9 @@ class SimulationUI:
 
         self.debug_panel.draw(surface)
 
+        self.template_panel.draw(surface)
+        self.save_dialog.draw(surface)
+
         help_text = font_small.render(
             "SPACE: Start/Stop | D: Debug | DEL: Delete | ESC: Cancel | Right-Click: Inspect",
             True,
@@ -992,6 +1322,7 @@ class SimulationUI:
         self.current_fps = self.clock.get_fps()
         self.engine.update(dt)
         self.debug_panel.update(dt)
+        self.save_dialog.update(dt)
 
     def tick(self):
         return self.clock.tick(60) / 1000.0
