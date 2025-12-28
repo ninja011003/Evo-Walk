@@ -802,6 +802,7 @@ class SimulationUI:
 
         self.mode = "bob"
         self.connecting_body = None
+        self.connecting_anchor = None
         self.current_fps = 60
         self.current_dt = 0
         self.force_start = None
@@ -965,6 +966,7 @@ class SimulationUI:
         self.start_btn.text = "Start"
         self.start_btn.active = False
         self.connecting_body = None
+        self.connecting_anchor = None
         self.force_start = None
         self.force_target = None
         self.debug_panel.set_selected(None)
@@ -1060,15 +1062,23 @@ class SimulationUI:
                         self.debug_panel.set_selected(new_bob)
                 elif self.mode == "rod":
                     if clicked_body:
+                        from simulation import Box
+                        anchor = None
+                        if isinstance(clicked_body, Box):
+                            anchor = clicked_body.get_nearest_anchor(x, y)
+
                         if self.connecting_body is None:
                             self.connecting_body = clicked_body
+                            self.connecting_anchor = anchor
                         elif self.connecting_body != clicked_body:
                             new_rod = self.engine.create_rod(
-                                self.connecting_body, clicked_body
+                                self.connecting_body, clicked_body,
+                                self.connecting_anchor, anchor
                             )
                             if new_rod:
                                 self.debug_panel.set_selected(new_rod)
                             self.connecting_body = None
+                            self.connecting_anchor = None
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             x, y = event.pos
@@ -1126,6 +1136,7 @@ class SimulationUI:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.connecting_body = None
+                self.connecting_anchor = None
                 self.force_start = None
                 self.force_target = None
             elif event.key == pygame.K_SPACE:
@@ -1190,10 +1201,10 @@ class SimulationUI:
         surface.blit(status, (640, 22))
 
         for rod in self.engine.rods:
-            x1 = int(rod.bob1.body.position.x)
-            y1 = int(rod.bob1.body.position.y)
-            x2 = int(rod.bob2.body.position.x)
-            y2 = int(rod.bob2.body.position.y)
+            p1 = rod.get_endpoint1()
+            p2 = rod.get_endpoint2()
+            x1, y1 = int(p1[0]), int(p1[1])
+            x2, y2 = int(p2[0]), int(p2[1])
 
             is_selected = self.debug_panel.selected_object == rod
             color = SELECTED_COLOR if is_selected else ROD_COLOR
@@ -1207,8 +1218,13 @@ class SimulationUI:
 
         if self.connecting_body:
             mx, my = pygame.mouse.get_pos()
-            x1 = int(self.connecting_body.body.position.x)
-            y1 = int(self.connecting_body.body.position.y)
+            from simulation import Box
+            if isinstance(self.connecting_body, Box) and self.connecting_anchor:
+                anchor_pos = self.connecting_body.get_world_anchor(self.connecting_anchor)
+                x1, y1 = int(anchor_pos.x), int(anchor_pos.y)
+            else:
+                x1 = int(self.connecting_body.body.position.x)
+                y1 = int(self.connecting_body.body.position.y)
             pygame.draw.line(surface, (80, 80, 100), (x1, y1), (mx, my), 2)
 
         mx, my = pygame.mouse.get_pos()
@@ -1256,6 +1272,18 @@ class SimulationUI:
                     surface, (255, 255, 255), (int(cx), int(cy)), 6
                 )
                 pygame.draw.circle(surface, (0, 0, 0), (int(cx), int(cy)), 4)
+
+            if self.mode == "rod" and box != self.engine.ground:
+                anchors = box.get_all_world_anchors()
+                for name, (ax, ay) in anchors.items():
+                    ax_i, ay_i = int(ax), int(ay)
+                    dist_sq = (mx - ax) ** 2 + (my - ay) ** 2
+                    if dist_sq < 400:
+                        pygame.draw.circle(surface, (255, 200, 100), (ax_i, ay_i), 8)
+                        pygame.draw.circle(surface, (255, 255, 255), (ax_i, ay_i), 8, 2)
+                    else:
+                        pygame.draw.circle(surface, (100, 180, 255), (ax_i, ay_i), 5)
+                        pygame.draw.circle(surface, (255, 255, 255), (ax_i, ay_i), 5, 1)
 
         for bob in self.engine.bobs:
             x = int(bob.body.position.x)

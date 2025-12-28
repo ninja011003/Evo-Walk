@@ -115,6 +115,12 @@ class Bob:
 class Box:
     _id_counter = 0
 
+    ANCHOR_CENTER = "center"
+    ANCHOR_LEFT = "left"
+    ANCHOR_RIGHT = "right"
+    ANCHOR_TOP = "top"
+    ANCHOR_BOTTOM = "bottom"
+
     def __init__(self, x, y, width=BOX_WIDTH, height=BOX_HEIGHT, pinned=False):
         Box._id_counter += 1
         self.id = Box._id_counter
@@ -132,6 +138,49 @@ class Box:
         if self.pinned:
             self.body.inv_moi = 0
         self.name = f"Box_{self.id}"
+
+    def get_local_anchors(self):
+        hw = self.width / 2
+        hh = self.height / 2
+        return {
+            self.ANCHOR_CENTER: Vector(0, 0),
+            self.ANCHOR_LEFT: Vector(-hw, 0),
+            self.ANCHOR_RIGHT: Vector(hw, 0),
+            self.ANCHOR_TOP: Vector(0, -hh),
+            self.ANCHOR_BOTTOM: Vector(0, hh),
+        }
+
+    def get_world_anchor(self, anchor_name):
+        import math
+        local = self.get_local_anchors()[anchor_name]
+        cos_a = math.cos(self.body.orientation)
+        sin_a = math.sin(self.body.orientation)
+        wx = self.body.position.x + local.x * cos_a - local.y * sin_a
+        wy = self.body.position.y + local.x * sin_a + local.y * cos_a
+        return Vector(wx, wy)
+
+    def get_all_world_anchors(self):
+        import math
+        cos_a = math.cos(self.body.orientation)
+        sin_a = math.sin(self.body.orientation)
+        cx, cy = self.body.position.x, self.body.position.y
+        result = {}
+        for name, local in self.get_local_anchors().items():
+            wx = cx + local.x * cos_a - local.y * sin_a
+            wy = cy + local.x * sin_a + local.y * cos_a
+            result[name] = (wx, wy)
+        return result
+
+    def get_nearest_anchor(self, x, y):
+        anchors = self.get_all_world_anchors()
+        min_dist = float('inf')
+        nearest = self.ANCHOR_CENTER
+        for name, (ax, ay) in anchors.items():
+            dist = (x - ax) ** 2 + (y - ay) ** 2
+            if dist < min_dist:
+                min_dist = dist
+                nearest = name
+        return nearest
 
     def contains(self, x, y):
         import math
@@ -226,23 +275,148 @@ class Box:
             self.body.apply_force(Vector(0, float(value)))
 
 
+import math
+
+class PointConstraint:
+    def __init__(self, box, anchor_name, bob):
+        self.box = box
+        self.anchor_name = anchor_name
+        self.bob = bob
+        self.local_anchor = box.get_local_anchors()[anchor_name]
+
+    def get_world_anchor(self):
+        cos_a = math.cos(self.box.body.orientation)
+        sin_a = math.sin(self.box.body.orientation)
+        wx = self.box.body.position.x + self.local_anchor.x * cos_a - self.local_anchor.y * sin_a
+        wy = self.box.body.position.y + self.local_anchor.x * sin_a + self.local_anchor.y * cos_a
+        return Vector(wx, wy)
+
+    def solve(self):
+        world_anchor = self.get_world_anchor()
+        bob_pos = self.bob.body.position
+
+        err_x = bob_pos.x - world_anchor.x
+        err_y = bob_pos.y - world_anchor.y
+
+        if abs(err_x) < 0.001 and abs(err_y) < 0.001:
+            return
+
+        w_bob = self.bob.body.inv_mass
+        w_box = self.box.body.inv_mass
+
+        r_x = world_anchor.x - self.box.body.position.x
+        r_y = world_anchor.y - self.box.body.position.y
+
+        r_cross_nx = -r_y
+        r_cross_ny = r_x
+
+        angular_mass_x = self.box.body.inv_moi * r_cross_nx * r_cross_nx
+        angular_mass_y = self.box.body.inv_moi * r_cross_ny * r_cross_ny
+
+        eff_mass_x = w_bob + w_box + angular_mass_x
+        eff_mass_y = w_bob + w_box + angular_mass_y
+
+        if eff_mass_x > 0:
+            lambda_x = err_x / eff_mass_x
+            self.bob.body.position.x -= w_bob * lambda_x
+            self.box.body.position.x += w_box * lambda_x
+            self.box.body.orientation += self.box.body.inv_moi * r_cross_nx * lambda_x
+
+        if eff_mass_y > 0:
+            lambda_y = err_y / eff_mass_y
+            self.bob.body.position.y -= w_bob * lambda_y
+            self.box.body.position.y += w_box * lambda_y
+            self.box.body.orientation += self.box.body.inv_moi * r_cross_ny * lambda_y
+
+        world_anchor = self.get_world_anchor()
+        r_x = world_anchor.x - self.box.body.position.x
+        r_y = world_anchor.y - self.box.body.position.y
+
+        box_anchor_vel_x = self.box.body.velocity.x - self.box.body.ang_velocity * r_y
+        box_anchor_vel_y = self.box.body.velocity.y + self.box.body.ang_velocity * r_x
+
+        rel_vel_x = self.bob.body.velocity.x - box_anchor_vel_x
+        rel_vel_y = self.bob.body.velocity.y - box_anchor_vel_y
+
+        r_cross_nx = -r_y
+        r_cross_ny = r_x
+
+        angular_mass_x = self.box.body.inv_moi * r_cross_nx * r_cross_nx
+        angular_mass_y = self.box.body.inv_moi * r_cross_ny * r_cross_ny
+
+        eff_mass_x = w_bob + w_box + angular_mass_x
+        eff_mass_y = w_bob + w_box + angular_mass_y
+
+        if eff_mass_x > 0:
+            impulse_x = rel_vel_x / eff_mass_x
+            self.bob.body.velocity.x -= w_bob * impulse_x
+            self.box.body.velocity.x += w_box * impulse_x
+            self.box.body.ang_velocity += self.box.body.inv_moi * r_cross_nx * impulse_x
+
+        if eff_mass_y > 0:
+            impulse_y = rel_vel_y / eff_mass_y
+            self.bob.body.velocity.y -= w_bob * impulse_y
+            self.box.body.velocity.y += w_box * impulse_y
+            self.box.body.ang_velocity += self.box.body.inv_moi * r_cross_ny * impulse_y
+
+
 class Rod:
     _id_counter = 0
 
-    def __init__(self, bob1, bob2):
+    def __init__(self, obj1, obj2, anchor1=None, anchor2=None):
         Rod._id_counter += 1
         self.id = Rod._id_counter
-        self.bob1 = bob1
-        self.bob2 = bob2
-        dx = bob2.body.position.x - bob1.body.position.x
-        dy = bob2.body.position.y - bob1.body.position.y
+        self.bob1 = obj1
+        self.bob2 = obj2
+        self.anchor1 = anchor1
+        self.anchor2 = anchor2
+
+        self.constraint = None
+        self.point_constraint1 = None
+        self.point_constraint2 = None
+
+        p1 = self._get_position(obj1, anchor1)
+        p2 = self._get_position(obj2, anchor2)
+        dx = p2.x - p1.x
+        dy = p2.y - p1.y
         self.length = (dx * dx + dy * dy) ** 0.5
-        self.constraint = Contraint(bob1.body, bob2.body, self.length)
+
+        is_box1 = isinstance(obj1, Box)
+        is_box2 = isinstance(obj2, Box)
+
+        if is_box1 and anchor1 and not isinstance(obj2, Box):
+            self.point_constraint1 = PointConstraint(obj1, anchor1, obj2)
+        elif is_box2 and anchor2 and not isinstance(obj1, Box):
+            self.point_constraint1 = PointConstraint(obj2, anchor2, obj1)
+        else:
+            self.constraint = Contraint(obj1.body, obj2.body, self.length)
+
         self.name = f"Rod_{self.id}"
 
+    def _get_position(self, obj, anchor):
+        if isinstance(obj, Box) and anchor:
+            return obj.get_world_anchor(anchor)
+        return obj.body.position
+
+    def get_endpoint1(self):
+        pos = self._get_position(self.bob1, self.anchor1)
+        return (pos.x, pos.y)
+
+    def get_endpoint2(self):
+        pos = self._get_position(self.bob2, self.anchor2)
+        return (pos.x, pos.y)
+
+    def solve(self):
+        if self.point_constraint1:
+            self.point_constraint1.solve()
+        if self.point_constraint2:
+            self.point_constraint2.solve()
+        if self.constraint:
+            self.constraint.solve()
+
     def contains(self, x, y):
-        x1, y1 = self.bob1.body.position.x, self.bob1.body.position.y
-        x2, y2 = self.bob2.body.position.x, self.bob2.body.position.y
+        x1, y1 = self.get_endpoint1()
+        x2, y2 = self.get_endpoint2()
 
         line_len = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
         if line_len == 0:
@@ -261,31 +435,38 @@ class Rod:
         return dist <= 8
 
     def cur_length(self):
-        dx = self.bob2.body.position.x - self.bob1.body.position.x
-        dy = self.bob2.body.position.y - self.bob1.body.position.y
+        p1 = self._get_position(self.bob1, self.anchor1)
+        p2 = self._get_position(self.bob2, self.anchor2)
+        dx = p2.x - p1.x
+        dy = p2.y - p1.y
         return (dx * dx + dy * dy) ** 0.5
 
     def get_debug_info(self):
         current_len = self.cur_length()
+        p1 = self.get_endpoint1()
+        p2 = self.get_endpoint2()
         return {
             "type": "Rod",
             "id": self.id,
             "name": self.name,
             "bob1": self.bob1.name,
             "bob2": self.bob2.name,
+            "anchor1": self.anchor1 or "center",
+            "anchor2": self.anchor2 or "center",
             "rest_length": round(self.length, 2),
             "current_length": round(current_len, 2),
             "stretch": round(current_len - self.length, 2),
-            "bob1.x": round(self.bob1.body.position.x, 2),
-            "bob1.y": round(self.bob1.body.position.y, 2),
-            "bob2.x": round(self.bob2.body.position.x, 2),
-            "bob2.y": round(self.bob2.body.position.y, 2),
+            "bob1.x": round(p1[0], 2),
+            "bob1.y": round(p1[1], 2),
+            "bob2.x": round(p2[0], 2),
+            "bob2.y": round(p2[1], 2),
         }
 
     def set_property(self, key, value):
         if key == "rest_length":
             self.length = max(1, float(value))
-            self.constraint.l = self.length
+            if self.constraint:
+                self.constraint.l = self.length
         elif key == "bob1.x":
             self.bob1.body.position.x = float(value)
         elif key == "bob1.y":
@@ -354,13 +535,8 @@ class SimulationEngine:
             return body
         return None
 
-    def create_rod(self, bob1, bob2):
-        for rod in self.rods:
-            if (rod.bob1 == bob1 and rod.bob2 == bob2) or (
-                rod.bob1 == bob2 and rod.bob2 == bob1
-            ):
-                return None
-        rod = Rod(bob1, bob2)
+    def create_rod(self, bob1, bob2, anchor1=None, anchor2=None):
+        rod = Rod(bob1, bob2, anchor1, anchor2)
         self.rods.append(rod)
         return rod
 
@@ -475,7 +651,7 @@ class SimulationEngine:
 
         for _ in range(self.iterations):
             for rod in self.rods:
-                rod.constraint.solve()
+                rod.solve()
 
         self.collision_handler.update()
 
@@ -567,6 +743,8 @@ class SimulationEngine:
                     "bob1_idx": bob1_idx,
                     "bob2_type": bob2_type,
                     "bob2_idx": bob2_idx,
+                    "anchor1": rod.anchor1,
+                    "anchor2": rod.anchor2,
                     "length": rod.length,
                 })
 
@@ -616,10 +794,13 @@ class SimulationEngine:
             bob2 = bob_map.get(bob2_idx) if bob2_type == "bob" else box_map.get(bob2_idx)
 
             if bob1 and bob2:
-                rod = self.create_rod(bob1, bob2)
+                anchor1 = rod_data.get("anchor1")
+                anchor2 = rod_data.get("anchor2")
+                rod = self.create_rod(bob1, bob2, anchor1, anchor2)
                 if rod and "length" in rod_data:
                     rod.length = rod_data["length"]
-                    rod.constraint.l = rod_data["length"]
+                    if rod.constraint:
+                        rod.constraint.l = rod_data["length"]
 
 
 def load_templates():

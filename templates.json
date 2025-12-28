@@ -173,5 +173,103 @@
         "length": 113.13708498984761
       }
     ]
+  },
+  "leg_1": {
+    "bobs": [
+      {
+        "x": 239.0,
+        "y": 188.0,
+        "pinned": true,
+        "radius": 5,
+        "mass": 0
+      },
+      {
+        "x": 238.86194658835655,
+        "y": 268.0631843107717,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      },
+      {
+        "x": 239.56356899739367,
+        "y": 348.05797097551255,
+        "pinned": false,
+        "radius": 5,
+        "mass": 1
+      }
+    ],
+    "boxes": [
+      {
+        "x": 238.92781424021248,
+        "y": 226.69490610300238,
+        "width": 15,
+        "height": 80,
+        "pinned": false,
+        "orientation": 0.0018478960093016676
+      },
+      {
+        "x": 239.13664995135872,
+        "y": 308.33622960856115,
+        "width": 15,
+        "height": 80,
+        "pinned": false,
+        "orientation": -31.421702778913787
+      },
+      {
+        "x": 240.5793209975405,
+        "y": 354.5148945895133,
+        "width": 15,
+        "height": 40.0,
+        "pinned": false,
+        "orientation": -1.7648095081317046
+      }
+    ],
+    "rods": [
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 0,
+        "bob2_type": "box",
+        "bob2_idx": 1,
+        "anchor1": null,
+        "anchor2": "top",
+        "length": 41.012193308819754
+      },
+      {
+        "bob1_type": "box",
+        "bob1_idx": 1,
+        "bob2_type": "bob",
+        "bob2_idx": 1,
+        "anchor1": "bottom",
+        "anchor2": null,
+        "length": 16.0
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 1,
+        "bob2_type": "box",
+        "bob2_idx": 2,
+        "anchor1": null,
+        "anchor2": "top",
+        "length": 15.033296378372908
+      },
+      {
+        "bob1_type": "box",
+        "bob1_idx": 2,
+        "bob2_type": "bob",
+        "bob2_idx": 2,
+        "anchor1": "bottom",
+        "anchor2": null,
+        "length": 16.922334702233844
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 2,
+        "bob2_type": "box",
+        "bob2_idx": 3,
+        "anchor1": null,
+        "anchor2": "right",
+        "length": 31.46913140123791
+      }
+    ]
   }
 }
