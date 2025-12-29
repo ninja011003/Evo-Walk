@@ -7,7 +7,7 @@ from engine.templates.collision_handler import Collision_Handler
 
 TEMPLATES_FILE = os.path.join(os.path.dirname(__file__), "templates.json")
 
-BOB_RADIUS = 5
+BOB_RADIUS = 10
 BOX_WIDTH = 15
 BOX_HEIGHT = 80
 GRAVITY = Vector(0, 980)
@@ -718,10 +718,11 @@ class SimulationEngine:
 
         box_map = {}
         boxes_data = []
-        for i, box in enumerate(self.boxes):
+        box_idx = 0
+        for box in self.boxes:
             if box == self.ground:
                 continue
-            box_map[box] = i
+            box_map[box] = box_idx
             boxes_data.append({
                 "x": box.body.position.x,
                 "y": box.body.position.y,
@@ -730,6 +731,7 @@ class SimulationEngine:
                 "pinned": box.pinned,
                 "orientation": box.body.orientation,
             })
+            box_idx += 1
 
         rods_data = []
         for rod in self.rods:
