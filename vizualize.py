@@ -28,6 +28,7 @@ BOB_SELECTED = (255, 200, 100)
 BOX_COLOR = (147, 112, 219)
 BOX_HOVER = (180, 150, 240)
 ROD_COLOR = (100, 181, 246)
+ACTUATOR_COLOR = (255, 140, 0)
 FORCE_COLOR = (255, 193, 7)
 BTN_COLOR = (45, 45, 60)
 BTN_HOVER = (65, 65, 85)
@@ -855,11 +856,14 @@ class SimulationUI:
         self.force_btn = Button(
             320, btn_y, 70, btn_h, "Force", self.set_force_mode, "ForceButton"
         )
+        self.actuator_btn = Button(
+            395, btn_y, 50, btn_h, "Act", self.set_actuator_mode, "ActuatorButton"
+        )
         self.save_btn = Button(
-            400, btn_y, 70, btn_h, "Save", self.show_save_dialog, "SaveButton"
+            450, btn_y, 70, btn_h, "Save", self.show_save_dialog, "SaveButton"
         )
         self.templates_btn = Button(
-            475, btn_y, 36, btn_h, "Saves", self.toggle_templates, "TemplatesButton"
+            525, btn_y, 50, btn_h, "Load", self.toggle_templates, "TemplatesButton"
         )
         self.start_btn = Button(
             WIDTH - 290,
@@ -895,6 +899,7 @@ class SimulationUI:
             self.rod_btn,
             self.pin_btn,
             self.force_btn,
+            self.actuator_btn,
             self.save_btn,
             self.templates_btn,
             self.start_btn,
@@ -910,6 +915,7 @@ class SimulationUI:
         self.rod_btn.active = False
         self.pin_btn.active = False
         self.force_btn.active = False
+        self.actuator_btn.active = False
 
     def set_bob_mode(self):
         self.mode = "bob"
@@ -935,6 +941,11 @@ class SimulationUI:
         self.mode = "force"
         self._clear_mode_buttons()
         self.force_btn.active = True
+
+    def set_actuator_mode(self):
+        self.mode = "actuator"
+        self._clear_mode_buttons()
+        self.actuator_btn.active = True
 
     def toggle_simulation(self):
         self.engine.toggle()
@@ -1079,6 +1090,25 @@ class SimulationUI:
                                 self.debug_panel.set_selected(new_rod)
                             self.connecting_body = None
                             self.connecting_anchor = None
+                elif self.mode == "actuator":
+                    if clicked_body:
+                        from simulation import Box
+                        anchor = None
+                        if isinstance(clicked_body, Box):
+                            anchor = clicked_body.get_nearest_anchor(x, y)
+
+                        if self.connecting_body is None:
+                            self.connecting_body = clicked_body
+                            self.connecting_anchor = anchor
+                        elif self.connecting_body != clicked_body:
+                            new_actuator = self.engine.create_actuator(
+                                self.connecting_body, clicked_body,
+                                self.connecting_anchor, anchor
+                            )
+                            if new_actuator:
+                                self.debug_panel.set_selected(new_actuator)
+                            self.connecting_body = None
+                            self.connecting_anchor = None
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             x, y = event.pos
@@ -1091,11 +1121,16 @@ class SimulationUI:
                 clicked_rod = (
                     self.engine.get_rod_at(x, y) if not clicked_body else None
                 )
+                clicked_actuator = (
+                    self.engine.get_actuator_at(x, y) if not clicked_body and not clicked_rod else None
+                )
 
                 if clicked_body:
                     self.debug_panel.set_selected(clicked_body)
                 elif clicked_rod:
                     self.debug_panel.set_selected(clicked_rod)
+                elif clicked_actuator:
+                    self.debug_panel.set_selected(clicked_actuator)
                 else:
                     self.debug_panel.set_selected(
                         self.engine.get_debug_info(
@@ -1216,6 +1251,32 @@ class SimulationUI:
                 )
             pygame.draw.line(surface, color, (x1, y1), (x2, y2), width)
 
+        for actuator in self.engine.actuators:
+            p1 = actuator.get_endpoint1()
+            p2 = actuator.get_endpoint2()
+            x1, y1 = int(p1[0]), int(p1[1])
+            x2, y2 = int(p2[0]), int(p2[1])
+
+            is_selected = self.debug_panel.selected_object == actuator
+            base_color = SELECTED_COLOR if is_selected else ACTUATOR_COLOR
+            width = 5 if is_selected else 3
+
+            if is_selected:
+                pygame.draw.line(surface, SELECTED_BORDER, (x1, y1), (x2, y2), width + 4)
+
+            activation = actuator.activation
+            if activation > 0:
+                r = int(255 * activation + base_color[0] * (1 - activation))
+                g = int(50 * activation + base_color[1] * (1 - activation))
+                b = int(50 * activation + base_color[2] * (1 - activation))
+                color = (r, g, b)
+            else:
+                color = base_color
+
+            pygame.draw.line(surface, color, (x1, y1), (x2, y2), width)
+            pygame.draw.circle(surface, color, (x1, y1), 4)
+            pygame.draw.circle(surface, color, (x2, y2), 4)
+
         if self.connecting_body:
             mx, my = pygame.mouse.get_pos()
             from simulation import Box
@@ -1273,7 +1334,7 @@ class SimulationUI:
                 )
                 pygame.draw.circle(surface, (0, 0, 0), (int(cx), int(cy)), 4)
 
-            if self.mode == "rod" and box != self.engine.ground:
+            if self.mode in ("rod", "actuator") and box != self.engine.ground:
                 anchors = box.get_all_world_anchors()
                 for name, (ax, ay) in anchors.items():
                     ax_i, ay_i = int(ax), int(ay)

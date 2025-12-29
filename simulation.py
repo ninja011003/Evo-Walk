@@ -4,6 +4,7 @@ from engine.templates.vector import Vector
 from engine.templates.body import Body
 from engine.templates.contraint import Contraint
 from engine.templates.collision_handler import Collision_Handler
+from engine.templates.actuator import Actuator
 
 TEMPLATES_FILE = os.path.join(os.path.dirname(__file__), "templates.json")
 
@@ -484,6 +485,7 @@ class SimulationEngine:
         self.bobs = []
         self.boxes = []
         self.rods = []
+        self.actuators = []
         self.running = False
         self.iterations = 8
         self.dragging_bob = None
@@ -509,6 +511,7 @@ class SimulationEngine:
 
     def delete_box(self, box):
         self.rods = [r for r in self.rods if r.bob1 != box and r.bob2 != box]
+        self.actuators = [a for a in self.actuators if a.obj1 != box and a.obj2 != box]
         if box in self.boxes:
             self.boxes.remove(box)
             self.collision_handler.remove_body(box.body)
@@ -540,8 +543,24 @@ class SimulationEngine:
         self.rods.append(rod)
         return rod
 
+    def create_actuator(self, obj1, obj2, anchor1=None, anchor2=None):
+        actuator = Actuator(obj1, obj2, anchor1, anchor2)
+        self.actuators.append(actuator)
+        return actuator
+
+    def get_actuator_at(self, x, y):
+        for actuator in reversed(self.actuators):
+            if actuator.contains(x, y):
+                return actuator
+        return None
+
+    def delete_actuator(self, actuator):
+        if actuator in self.actuators:
+            self.actuators.remove(actuator)
+
     def delete_bob(self, bob):
         self.rods = [r for r in self.rods if r.bob1 != bob and r.bob2 != bob]
+        self.actuators = [a for a in self.actuators if a.obj1 != bob and a.obj2 != bob]
         if bob in self.bobs:
             self.bobs.remove(bob)
             self.collision_handler.remove_body(bob.body)
@@ -608,6 +627,7 @@ class SimulationEngine:
         self.bobs = []
         self.boxes = []
         self.rods = []
+        self.actuators = []
         self.running = False
         self.dragging_bob = None
         self.dragging_box = None
@@ -615,6 +635,7 @@ class SimulationEngine:
         Bob._id_counter = 0
         Box._id_counter = 0
         Rod._id_counter = 0
+        Actuator._id_counter = 0
         self.ground = self.create_box(
             self.width / 2, self.height - 20, self.width, 40, pinned=True
         )
@@ -640,6 +661,9 @@ class SimulationEngine:
                     ),
                     box.body.position,
                 )
+
+        for actuator in self.actuators:
+            actuator.apply_forces()
 
         for bob in self.bobs:
             if bob != self.dragging_bob:
@@ -750,10 +774,30 @@ class SimulationEngine:
                     "length": rod.length,
                 })
 
+        actuators_data = []
+        for actuator in self.actuators:
+            obj1_type = "bob" if actuator.obj1 in bob_map else "box"
+            obj2_type = "bob" if actuator.obj2 in bob_map else "box"
+            obj1_idx = bob_map.get(actuator.obj1, box_map.get(actuator.obj1, -1))
+            obj2_idx = bob_map.get(actuator.obj2, box_map.get(actuator.obj2, -1))
+            if obj1_idx >= 0 and obj2_idx >= 0:
+                actuators_data.append({
+                    "obj1_type": obj1_type,
+                    "obj1_idx": obj1_idx,
+                    "obj2_type": obj2_type,
+                    "obj2_idx": obj2_idx,
+                    "anchor1": actuator.anchor1,
+                    "anchor2": actuator.anchor2,
+                    "rest_length": actuator.rest_length,
+                    "max_force": actuator.max_force,
+                    "stiffness": actuator.stiffness,
+                })
+
         return {
             "bobs": bobs_data,
             "boxes": boxes_data,
             "rods": rods_data,
+            "actuators": actuators_data,
         }
 
     def load_template(self, data, offset_x=0, offset_y=0):
@@ -803,6 +847,28 @@ class SimulationEngine:
                     rod.length = rod_data["length"]
                     if rod.constraint:
                         rod.constraint.l = rod_data["length"]
+
+        for actuator_data in data.get("actuators", []):
+            obj1_type = actuator_data.get("obj1_type", "bob")
+            obj2_type = actuator_data.get("obj2_type", "bob")
+            obj1_idx = actuator_data["obj1_idx"]
+            obj2_idx = actuator_data["obj2_idx"]
+
+            obj1 = bob_map.get(obj1_idx) if obj1_type == "bob" else box_map.get(obj1_idx)
+            obj2 = bob_map.get(obj2_idx) if obj2_type == "bob" else box_map.get(obj2_idx)
+
+            if obj1 and obj2:
+                anchor1 = actuator_data.get("anchor1")
+                anchor2 = actuator_data.get("anchor2")
+                actuator = self.create_actuator(obj1, obj2, anchor1, anchor2)
+                if actuator:
+                    if "rest_length" in actuator_data:
+                        actuator.rest_length = actuator_data["rest_length"]
+                        actuator.target_length = actuator.rest_length
+                    if "max_force" in actuator_data:
+                        actuator.max_force = actuator_data["max_force"]
+                    if "stiffness" in actuator_data:
+                        actuator.stiffness = actuator_data["stiffness"]
 
 
 def load_templates():
