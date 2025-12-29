@@ -153,6 +153,7 @@ class Box:
 
     def get_world_anchor(self, anchor_name):
         import math
+
         local = self.get_local_anchors()[anchor_name]
         cos_a = math.cos(self.body.orientation)
         sin_a = math.sin(self.body.orientation)
@@ -162,6 +163,7 @@ class Box:
 
     def get_all_world_anchors(self):
         import math
+
         cos_a = math.cos(self.body.orientation)
         sin_a = math.sin(self.body.orientation)
         cx, cy = self.body.position.x, self.body.position.y
@@ -174,7 +176,7 @@ class Box:
 
     def get_nearest_anchor(self, x, y):
         anchors = self.get_all_world_anchors()
-        min_dist = float('inf')
+        min_dist = float("inf")
         nearest = self.ANCHOR_CENTER
         for name, (ax, ay) in anchors.items():
             dist = (x - ax) ** 2 + (y - ay) ** 2
@@ -278,6 +280,7 @@ class Box:
 
 import math
 
+
 class PointConstraint:
     def __init__(self, box, anchor_name, bob):
         self.box = box
@@ -288,8 +291,16 @@ class PointConstraint:
     def get_world_anchor(self):
         cos_a = math.cos(self.box.body.orientation)
         sin_a = math.sin(self.box.body.orientation)
-        wx = self.box.body.position.x + self.local_anchor.x * cos_a - self.local_anchor.y * sin_a
-        wy = self.box.body.position.y + self.local_anchor.x * sin_a + self.local_anchor.y * cos_a
+        wx = (
+            self.box.body.position.x
+            + self.local_anchor.x * cos_a
+            - self.local_anchor.y * sin_a
+        )
+        wy = (
+            self.box.body.position.y
+            + self.local_anchor.x * sin_a
+            + self.local_anchor.y * cos_a
+        )
         return Vector(wx, wy)
 
     def solve(self):
@@ -321,20 +332,28 @@ class PointConstraint:
             lambda_x = err_x / eff_mass_x
             self.bob.body.position.x -= w_bob * lambda_x
             self.box.body.position.x += w_box * lambda_x
-            self.box.body.orientation += self.box.body.inv_moi * r_cross_nx * lambda_x
+            self.box.body.orientation += (
+                self.box.body.inv_moi * r_cross_nx * lambda_x
+            )
 
         if eff_mass_y > 0:
             lambda_y = err_y / eff_mass_y
             self.bob.body.position.y -= w_bob * lambda_y
             self.box.body.position.y += w_box * lambda_y
-            self.box.body.orientation += self.box.body.inv_moi * r_cross_ny * lambda_y
+            self.box.body.orientation += (
+                self.box.body.inv_moi * r_cross_ny * lambda_y
+            )
 
         world_anchor = self.get_world_anchor()
         r_x = world_anchor.x - self.box.body.position.x
         r_y = world_anchor.y - self.box.body.position.y
 
-        box_anchor_vel_x = self.box.body.velocity.x - self.box.body.ang_velocity * r_y
-        box_anchor_vel_y = self.box.body.velocity.y + self.box.body.ang_velocity * r_x
+        box_anchor_vel_x = (
+            self.box.body.velocity.x - self.box.body.ang_velocity * r_y
+        )
+        box_anchor_vel_y = (
+            self.box.body.velocity.y + self.box.body.ang_velocity * r_x
+        )
 
         rel_vel_x = self.bob.body.velocity.x - box_anchor_vel_x
         rel_vel_y = self.bob.body.velocity.y - box_anchor_vel_y
@@ -352,13 +371,17 @@ class PointConstraint:
             impulse_x = rel_vel_x / eff_mass_x
             self.bob.body.velocity.x -= w_bob * impulse_x
             self.box.body.velocity.x += w_box * impulse_x
-            self.box.body.ang_velocity += self.box.body.inv_moi * r_cross_nx * impulse_x
+            self.box.body.ang_velocity += (
+                self.box.body.inv_moi * r_cross_nx * impulse_x
+            )
 
         if eff_mass_y > 0:
             impulse_y = rel_vel_y / eff_mass_y
             self.bob.body.velocity.y -= w_bob * impulse_y
             self.box.body.velocity.y += w_box * impulse_y
-            self.box.body.ang_velocity += self.box.body.inv_moi * r_cross_ny * impulse_y
+            self.box.body.ang_velocity += (
+                self.box.body.inv_moi * r_cross_ny * impulse_y
+            )
 
 
 class Rod:
@@ -511,7 +534,9 @@ class SimulationEngine:
 
     def delete_box(self, box):
         self.rods = [r for r in self.rods if r.bob1 != box and r.bob2 != box]
-        self.actuators = [a for a in self.actuators if a.obj1 != box and a.obj2 != box]
+        self.actuators = [
+            a for a in self.actuators if a.obj1 != box and a.obj2 != box
+        ]
         if box in self.boxes:
             self.boxes.remove(box)
             self.collision_handler.remove_body(box.body)
@@ -560,7 +585,9 @@ class SimulationEngine:
 
     def delete_bob(self, bob):
         self.rods = [r for r in self.rods if r.bob1 != bob and r.bob2 != bob]
-        self.actuators = [a for a in self.actuators if a.obj1 != bob and a.obj2 != bob]
+        self.actuators = [
+            a for a in self.actuators if a.obj1 != bob and a.obj2 != bob
+        ]
         if bob in self.bobs:
             self.bobs.remove(bob)
             self.collision_handler.remove_body(bob.body)
@@ -732,13 +759,15 @@ class SimulationEngine:
         bobs_data = []
         for i, bob in enumerate(self.bobs):
             bob_map[bob] = i
-            bobs_data.append({
-                "x": bob.body.position.x,
-                "y": bob.body.position.y,
-                "pinned": bob.pinned,
-                "radius": bob.radius,
-                "mass": bob.body.mass,
-            })
+            bobs_data.append(
+                {
+                    "x": bob.body.position.x,
+                    "y": bob.body.position.y,
+                    "pinned": bob.pinned,
+                    "radius": bob.radius,
+                    "mass": bob.body.mass,
+                }
+            )
 
         box_map = {}
         boxes_data = []
@@ -747,14 +776,16 @@ class SimulationEngine:
             if box == self.ground:
                 continue
             box_map[box] = box_idx
-            boxes_data.append({
-                "x": box.body.position.x,
-                "y": box.body.position.y,
-                "width": box.width,
-                "height": box.height,
-                "pinned": box.pinned,
-                "orientation": box.body.orientation,
-            })
+            boxes_data.append(
+                {
+                    "x": box.body.position.x,
+                    "y": box.body.position.y,
+                    "width": box.width,
+                    "height": box.height,
+                    "pinned": box.pinned,
+                    "orientation": box.body.orientation,
+                }
+            )
             box_idx += 1
 
         rods_data = []
@@ -764,34 +795,42 @@ class SimulationEngine:
             bob1_idx = bob_map.get(rod.bob1, box_map.get(rod.bob1, -1))
             bob2_idx = bob_map.get(rod.bob2, box_map.get(rod.bob2, -1))
             if bob1_idx >= 0 and bob2_idx >= 0:
-                rods_data.append({
-                    "bob1_type": bob1_type,
-                    "bob1_idx": bob1_idx,
-                    "bob2_type": bob2_type,
-                    "bob2_idx": bob2_idx,
-                    "anchor1": rod.anchor1,
-                    "anchor2": rod.anchor2,
-                    "length": rod.length,
-                })
+                rods_data.append(
+                    {
+                        "bob1_type": bob1_type,
+                        "bob1_idx": bob1_idx,
+                        "bob2_type": bob2_type,
+                        "bob2_idx": bob2_idx,
+                        "anchor1": rod.anchor1,
+                        "anchor2": rod.anchor2,
+                        "length": rod.length,
+                    }
+                )
 
         actuators_data = []
         for actuator in self.actuators:
             obj1_type = "bob" if actuator.obj1 in bob_map else "box"
             obj2_type = "bob" if actuator.obj2 in bob_map else "box"
-            obj1_idx = bob_map.get(actuator.obj1, box_map.get(actuator.obj1, -1))
-            obj2_idx = bob_map.get(actuator.obj2, box_map.get(actuator.obj2, -1))
+            obj1_idx = bob_map.get(
+                actuator.obj1, box_map.get(actuator.obj1, -1)
+            )
+            obj2_idx = bob_map.get(
+                actuator.obj2, box_map.get(actuator.obj2, -1)
+            )
             if obj1_idx >= 0 and obj2_idx >= 0:
-                actuators_data.append({
-                    "obj1_type": obj1_type,
-                    "obj1_idx": obj1_idx,
-                    "obj2_type": obj2_type,
-                    "obj2_idx": obj2_idx,
-                    "anchor1": actuator.anchor1,
-                    "anchor2": actuator.anchor2,
-                    "rest_length": actuator.rest_length,
-                    "max_force": actuator.max_force,
-                    "stiffness": actuator.stiffness,
-                })
+                actuators_data.append(
+                    {
+                        "obj1_type": obj1_type,
+                        "obj1_idx": obj1_idx,
+                        "obj2_type": obj2_type,
+                        "obj2_idx": obj2_idx,
+                        "anchor1": actuator.anchor1,
+                        "anchor2": actuator.anchor2,
+                        "rest_length": actuator.rest_length,
+                        "max_force": actuator.max_force,
+                        "stiffness": actuator.stiffness,
+                    }
+                )
 
         return {
             "bobs": bobs_data,
@@ -808,7 +847,7 @@ class SimulationEngine:
             bob = self.create_bob(
                 bob_data["x"] + offset_x,
                 bob_data["y"] + offset_y,
-                pinned=bob_data.get("pinned", False)
+                pinned=bob_data.get("pinned", False),
             )
             if "radius" in bob_data:
                 bob.radius = bob_data["radius"]
@@ -824,7 +863,7 @@ class SimulationEngine:
                 box_data["y"] + offset_y,
                 width=box_data.get("width", BOX_WIDTH),
                 height=box_data.get("height", BOX_HEIGHT),
-                pinned=box_data.get("pinned", False)
+                pinned=box_data.get("pinned", False),
             )
             if "orientation" in box_data:
                 box.body.orientation = box_data["orientation"]
@@ -836,8 +875,16 @@ class SimulationEngine:
             bob1_idx = rod_data["bob1_idx"]
             bob2_idx = rod_data["bob2_idx"]
 
-            bob1 = bob_map.get(bob1_idx) if bob1_type == "bob" else box_map.get(bob1_idx)
-            bob2 = bob_map.get(bob2_idx) if bob2_type == "bob" else box_map.get(bob2_idx)
+            bob1 = (
+                bob_map.get(bob1_idx)
+                if bob1_type == "bob"
+                else box_map.get(bob1_idx)
+            )
+            bob2 = (
+                bob_map.get(bob2_idx)
+                if bob2_type == "bob"
+                else box_map.get(bob2_idx)
+            )
 
             if bob1 and bob2:
                 anchor1 = rod_data.get("anchor1")
@@ -854,8 +901,16 @@ class SimulationEngine:
             obj1_idx = actuator_data["obj1_idx"]
             obj2_idx = actuator_data["obj2_idx"]
 
-            obj1 = bob_map.get(obj1_idx) if obj1_type == "bob" else box_map.get(obj1_idx)
-            obj2 = bob_map.get(obj2_idx) if obj2_type == "bob" else box_map.get(obj2_idx)
+            obj1 = (
+                bob_map.get(obj1_idx)
+                if obj1_type == "bob"
+                else box_map.get(obj1_idx)
+            )
+            obj2 = (
+                bob_map.get(obj2_idx)
+                if obj2_type == "bob"
+                else box_map.get(obj2_idx)
+            )
 
             if obj1 and obj2:
                 anchor1 = actuator_data.get("anchor1")

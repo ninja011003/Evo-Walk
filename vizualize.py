@@ -554,13 +554,13 @@ class SaveDialog:
                 self.rect.x + self.rect.width - 90,
                 self.rect.y + self.rect.height - 50,
                 70,
-                35
+                35,
             )
             cancel_btn = pygame.Rect(
                 self.rect.x + self.rect.width - 170,
                 self.rect.y + self.rect.height - 50,
                 70,
-                35
+                35,
             )
 
             if save_btn.collidepoint(event.pos) and self.text.strip():
@@ -583,12 +583,18 @@ class SaveDialog:
                 return True
             elif event.key == pygame.K_BACKSPACE:
                 if self.cursor_pos > 0:
-                    self.text = self.text[:self.cursor_pos - 1] + self.text[self.cursor_pos:]
+                    self.text = (
+                        self.text[: self.cursor_pos - 1]
+                        + self.text[self.cursor_pos :]
+                    )
                     self.cursor_pos -= 1
                 return True
             elif event.key == pygame.K_DELETE:
                 if self.cursor_pos < len(self.text):
-                    self.text = self.text[:self.cursor_pos] + self.text[self.cursor_pos + 1:]
+                    self.text = (
+                        self.text[: self.cursor_pos]
+                        + self.text[self.cursor_pos + 1 :]
+                    )
                 return True
             elif event.key == pygame.K_LEFT:
                 self.cursor_pos = max(0, self.cursor_pos - 1)
@@ -597,7 +603,11 @@ class SaveDialog:
                 self.cursor_pos = min(len(self.text), self.cursor_pos + 1)
                 return True
             elif event.unicode and event.unicode.isprintable():
-                self.text = self.text[:self.cursor_pos] + event.unicode + self.text[self.cursor_pos:]
+                self.text = (
+                    self.text[: self.cursor_pos]
+                    + event.unicode
+                    + self.text[self.cursor_pos :]
+                )
                 self.cursor_pos += 1
                 return True
 
@@ -619,9 +629,17 @@ class SaveDialog:
         overlay.fill((0, 0, 0, 150))
         surface.blit(overlay, (0, 0))
 
-        panel = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        panel = pygame.Surface(
+            (self.rect.width, self.rect.height), pygame.SRCALPHA
+        )
         panel.fill((28, 28, 38, 250))
-        pygame.draw.rect(panel, DEBUG_BORDER, (0, 0, self.rect.width, self.rect.height), 2, border_radius=12)
+        pygame.draw.rect(
+            panel,
+            DEBUG_BORDER,
+            (0, 0, self.rect.width, self.rect.height),
+            2,
+            border_radius=12,
+        )
 
         title = font_debug_title.render("Save Template", True, DEBUG_HIGHLIGHT)
         panel.blit(title, (20, 20))
@@ -631,17 +649,33 @@ class SaveDialog:
 
         input_rect = pygame.Rect(20, 85, self.rect.width - 40, 35)
         pygame.draw.rect(panel, INPUT_BG, input_rect, border_radius=6)
-        pygame.draw.rect(panel, INPUT_BORDER_ACTIVE, input_rect, 2, border_radius=6)
+        pygame.draw.rect(
+            panel, INPUT_BORDER_ACTIVE, input_rect, 2, border_radius=6
+        )
 
         text_surface = font_input.render(self.text, True, INPUT_TEXT)
         panel.blit(text_surface, (input_rect.x + 10, input_rect.y + 9))
 
         if self.cursor_visible:
-            cursor_x = input_rect.x + 10 + font_input.size(self.text[:self.cursor_pos])[0]
-            pygame.draw.line(panel, INPUT_TEXT, (cursor_x, input_rect.y + 8), (cursor_x, input_rect.y + 27), 2)
+            cursor_x = (
+                input_rect.x
+                + 10
+                + font_input.size(self.text[: self.cursor_pos])[0]
+            )
+            pygame.draw.line(
+                panel,
+                INPUT_TEXT,
+                (cursor_x, input_rect.y + 8),
+                (cursor_x, input_rect.y + 27),
+                2,
+            )
 
-        save_btn = pygame.Rect(self.rect.width - 90, self.rect.height - 50, 70, 35)
-        cancel_btn = pygame.Rect(self.rect.width - 170, self.rect.height - 50, 70, 35)
+        save_btn = pygame.Rect(
+            self.rect.width - 90, self.rect.height - 50, 70, 35
+        )
+        cancel_btn = pygame.Rect(
+            self.rect.width - 170, self.rect.height - 50, 70, 35
+        )
 
         save_color = BTN_ACTIVE if self.text.strip() else BTN_COLOR
         pygame.draw.rect(panel, save_color, save_btn, border_radius=6)
@@ -695,7 +729,9 @@ class TemplatePanel:
             y_offset = 50
             for name in self.templates.keys():
                 item_rect = pygame.Rect(15, y_offset, self.rect.width - 30, 45)
-                delete_rect = pygame.Rect(self.rect.width - 50, y_offset + 10, 25, 25)
+                delete_rect = pygame.Rect(
+                    self.rect.width - 50, y_offset + 10, 25, 25
+                )
 
                 if delete_rect.collidepoint(rel_x, rel_y):
                     delete_template(name)
@@ -718,8 +754,12 @@ class TemplatePanel:
                 self.delete_hovered = None
                 y_offset = 50
                 for name in self.templates.keys():
-                    item_rect = pygame.Rect(15, y_offset, self.rect.width - 30, 45)
-                    delete_rect = pygame.Rect(self.rect.width - 50, y_offset + 10, 25, 25)
+                    item_rect = pygame.Rect(
+                        15, y_offset, self.rect.width - 30, 45
+                    )
+                    delete_rect = pygame.Rect(
+                        self.rect.width - 50, y_offset + 10, 25, 25
+                    )
 
                     if delete_rect.collidepoint(rel_x, rel_y):
                         self.delete_hovered = name
@@ -727,9 +767,15 @@ class TemplatePanel:
                         self.hovered_template = name
                     y_offset += 55
 
-        if event.type == pygame.MOUSEWHEEL and self.rect.collidepoint(pygame.mouse.get_pos()):
-            max_scroll = max(0, len(self.templates) * 55 + 60 - self.rect.height)
-            self.scroll_y = max(0, min(max_scroll, self.scroll_y - event.y * 20))
+        if event.type == pygame.MOUSEWHEEL and self.rect.collidepoint(
+            pygame.mouse.get_pos()
+        ):
+            max_scroll = max(
+                0, len(self.templates) * 55 + 60 - self.rect.height
+            )
+            self.scroll_y = max(
+                0, min(max_scroll, self.scroll_y - event.y * 20)
+            )
             return True
 
         return False
@@ -738,12 +784,26 @@ class TemplatePanel:
         if not self.visible:
             return
 
-        panel = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        panel = pygame.Surface(
+            (self.rect.width, self.rect.height), pygame.SRCALPHA
+        )
         panel.fill((28, 28, 38, 245))
-        pygame.draw.rect(panel, DEBUG_BORDER, (0, 0, self.rect.width, self.rect.height), 2, border_radius=12)
+        pygame.draw.rect(
+            panel,
+            DEBUG_BORDER,
+            (0, 0, self.rect.width, self.rect.height),
+            2,
+            border_radius=12,
+        )
 
         header_rect = pygame.Rect(0, 0, self.rect.width, 45)
-        pygame.draw.rect(panel, (35, 35, 50, 250), header_rect, border_top_left_radius=12, border_top_right_radius=12)
+        pygame.draw.rect(
+            panel,
+            (35, 35, 50, 250),
+            header_rect,
+            border_top_left_radius=12,
+            border_top_right_radius=12,
+        )
 
         icon_surface = font_large.render("SAVEs", True, DEBUG_HIGHLIGHT)
         panel.blit(icon_surface, (15, 12))
@@ -752,41 +812,82 @@ class TemplatePanel:
 
         pygame.draw.line(panel, DEBUG_BORDER, (0, 45), (self.rect.width, 45), 1)
 
-        content_surface = pygame.Surface((self.rect.width - 4, self.rect.height - 50), pygame.SRCALPHA)
+        content_surface = pygame.Surface(
+            (self.rect.width - 4, self.rect.height - 50), pygame.SRCALPHA
+        )
 
         if not self.templates:
-            empty_text = font_debug.render("No templates saved", True, DEBUG_LABEL)
+            empty_text = font_debug.render(
+                "No templates saved", True, DEBUG_LABEL
+            )
             content_surface.blit(empty_text, (20, 30))
-            hint_text = font_debug_label.render("Click Save to create one", True, (70, 70, 90))
+            hint_text = font_debug_label.render(
+                "Click Save to create one", True, (70, 70, 90)
+            )
             content_surface.blit(hint_text, (20, 55))
         else:
             y_offset = 10 - self.scroll_y
             for name, data in self.templates.items():
                 if y_offset + 45 > 0 and y_offset < self.rect.height - 50:
-                    item_rect = pygame.Rect(15, y_offset, self.rect.width - 34, 45)
+                    item_rect = pygame.Rect(
+                        15, y_offset, self.rect.width - 34, 45
+                    )
 
                     if name == self.hovered_template:
-                        pygame.draw.rect(content_surface, (50, 55, 70), item_rect, border_radius=8)
+                        pygame.draw.rect(
+                            content_surface,
+                            (50, 55, 70),
+                            item_rect,
+                            border_radius=8,
+                        )
                     else:
-                        pygame.draw.rect(content_surface, (38, 38, 52), item_rect, border_radius=8)
+                        pygame.draw.rect(
+                            content_surface,
+                            (38, 38, 52),
+                            item_rect,
+                            border_radius=8,
+                        )
 
-                    pygame.draw.rect(content_surface, (55, 55, 75), item_rect, 1, border_radius=8)
+                    pygame.draw.rect(
+                        content_surface,
+                        (55, 55, 75),
+                        item_rect,
+                        1,
+                        border_radius=8,
+                    )
 
                     name_text = font_debug.render(name[:20], True, DEBUG_VALUE)
-                    content_surface.blit(name_text, (item_rect.x + 12, item_rect.y + 6))
+                    content_surface.blit(
+                        name_text, (item_rect.x + 12, item_rect.y + 6)
+                    )
 
                     bobs = len(data.get("bobs", []))
                     boxes = len(data.get("boxes", []))
                     rods = len(data.get("rods", []))
                     info = f"{bobs} bobs, {boxes} boxes, {rods} rods"
                     info_text = font_debug_label.render(info, True, DEBUG_LABEL)
-                    content_surface.blit(info_text, (item_rect.x + 12, item_rect.y + 26))
+                    content_surface.blit(
+                        info_text, (item_rect.x + 12, item_rect.y + 26)
+                    )
 
-                    delete_rect = pygame.Rect(item_rect.right - 35, item_rect.y + 10, 25, 25)
-                    delete_color = (255, 80, 80) if name == self.delete_hovered else (120, 80, 80)
-                    pygame.draw.rect(content_surface, delete_color, delete_rect, border_radius=4)
+                    delete_rect = pygame.Rect(
+                        item_rect.right - 35, item_rect.y + 10, 25, 25
+                    )
+                    delete_color = (
+                        (255, 80, 80)
+                        if name == self.delete_hovered
+                        else (120, 80, 80)
+                    )
+                    pygame.draw.rect(
+                        content_surface,
+                        delete_color,
+                        delete_rect,
+                        border_radius=4,
+                    )
                     x_text = font_small.render("×", True, (255, 255, 255))
-                    content_surface.blit(x_text, (delete_rect.x + 7, delete_rect.y + 3))
+                    content_surface.blit(
+                        x_text, (delete_rect.x + 7, delete_rect.y + 3)
+                    )
 
                 y_offset += 55
 
@@ -822,7 +923,7 @@ class SimulationUI:
             350,
             170,
             self.on_save_template,
-            lambda: None
+            lambda: None,
         )
 
         self.template_panel = TemplatePanel(
@@ -831,7 +932,7 @@ class SimulationUI:
             350,
             300,
             self.on_load_template,
-            lambda: None
+            lambda: None,
         )
 
         self.buttons = []
@@ -857,13 +958,25 @@ class SimulationUI:
             320, btn_y, 70, btn_h, "Force", self.set_force_mode, "ForceButton"
         )
         self.actuator_btn = Button(
-            395, btn_y, 50, btn_h, "Act", self.set_actuator_mode, "ActuatorButton"
+            395,
+            btn_y,
+            50,
+            btn_h,
+            "Act",
+            self.set_actuator_mode,
+            "ActuatorButton",
         )
         self.save_btn = Button(
             450, btn_y, 70, btn_h, "Save", self.show_save_dialog, "SaveButton"
         )
         self.templates_btn = Button(
-            525, btn_y, 50, btn_h, "Load", self.toggle_templates, "TemplatesButton"
+            525,
+            btn_y,
+            50,
+            btn_h,
+            "Load",
+            self.toggle_templates,
+            "TemplatesButton",
         )
         self.start_btn = Button(
             WIDTH - 290,
@@ -1074,6 +1187,7 @@ class SimulationUI:
                 elif self.mode == "rod":
                     if clicked_body:
                         from simulation import Box
+
                         anchor = None
                         if isinstance(clicked_body, Box):
                             anchor = clicked_body.get_nearest_anchor(x, y)
@@ -1083,8 +1197,10 @@ class SimulationUI:
                             self.connecting_anchor = anchor
                         elif self.connecting_body != clicked_body:
                             new_rod = self.engine.create_rod(
-                                self.connecting_body, clicked_body,
-                                self.connecting_anchor, anchor
+                                self.connecting_body,
+                                clicked_body,
+                                self.connecting_anchor,
+                                anchor,
                             )
                             if new_rod:
                                 self.debug_panel.set_selected(new_rod)
@@ -1093,6 +1209,7 @@ class SimulationUI:
                 elif self.mode == "actuator":
                     if clicked_body:
                         from simulation import Box
+
                         anchor = None
                         if isinstance(clicked_body, Box):
                             anchor = clicked_body.get_nearest_anchor(x, y)
@@ -1102,8 +1219,10 @@ class SimulationUI:
                             self.connecting_anchor = anchor
                         elif self.connecting_body != clicked_body:
                             new_actuator = self.engine.create_actuator(
-                                self.connecting_body, clicked_body,
-                                self.connecting_anchor, anchor
+                                self.connecting_body,
+                                clicked_body,
+                                self.connecting_anchor,
+                                anchor,
                             )
                             if new_actuator:
                                 self.debug_panel.set_selected(new_actuator)
@@ -1122,7 +1241,9 @@ class SimulationUI:
                     self.engine.get_rod_at(x, y) if not clicked_body else None
                 )
                 clicked_actuator = (
-                    self.engine.get_actuator_at(x, y) if not clicked_body and not clicked_rod else None
+                    self.engine.get_actuator_at(x, y)
+                    if not clicked_body and not clicked_rod
+                    else None
                 )
 
                 if clicked_body:
@@ -1262,7 +1383,9 @@ class SimulationUI:
             width = 5 if is_selected else 3
 
             if is_selected:
-                pygame.draw.line(surface, SELECTED_BORDER, (x1, y1), (x2, y2), width + 4)
+                pygame.draw.line(
+                    surface, SELECTED_BORDER, (x1, y1), (x2, y2), width + 4
+                )
 
             activation = actuator.activation
             if activation > 0:
@@ -1280,8 +1403,11 @@ class SimulationUI:
         if self.connecting_body:
             mx, my = pygame.mouse.get_pos()
             from simulation import Box
+
             if isinstance(self.connecting_body, Box) and self.connecting_anchor:
-                anchor_pos = self.connecting_body.get_world_anchor(self.connecting_anchor)
+                anchor_pos = self.connecting_body.get_world_anchor(
+                    self.connecting_anchor
+                )
                 x1, y1 = int(anchor_pos.x), int(anchor_pos.y)
             else:
                 x1 = int(self.connecting_body.body.position.x)
@@ -1340,11 +1466,19 @@ class SimulationUI:
                     ax_i, ay_i = int(ax), int(ay)
                     dist_sq = (mx - ax) ** 2 + (my - ay) ** 2
                     if dist_sq < 400:
-                        pygame.draw.circle(surface, (255, 200, 100), (ax_i, ay_i), 8)
-                        pygame.draw.circle(surface, (255, 255, 255), (ax_i, ay_i), 8, 2)
+                        pygame.draw.circle(
+                            surface, (255, 200, 100), (ax_i, ay_i), 8
+                        )
+                        pygame.draw.circle(
+                            surface, (255, 255, 255), (ax_i, ay_i), 8, 2
+                        )
                     else:
-                        pygame.draw.circle(surface, (100, 180, 255), (ax_i, ay_i), 5)
-                        pygame.draw.circle(surface, (255, 255, 255), (ax_i, ay_i), 5, 1)
+                        pygame.draw.circle(
+                            surface, (100, 180, 255), (ax_i, ay_i), 5
+                        )
+                        pygame.draw.circle(
+                            surface, (255, 255, 255), (ax_i, ay_i), 5, 1
+                        )
 
         for bob in self.engine.bobs:
             x = int(bob.body.position.x)

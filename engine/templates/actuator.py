@@ -26,7 +26,7 @@ class Actuator:
         self.name = f"Actuator_{self.id}"
 
     def _is_box(self, obj):
-        return hasattr(obj, 'get_local_anchors')
+        return hasattr(obj, "get_local_anchors")
 
     def _get_local_anchor(self, obj, anchor):
         if self._is_box(obj) and anchor:
@@ -56,7 +56,9 @@ class Actuator:
     def set_activation(self, value):
         self.activation = max(0.0, min(1.0, value))
         min_length = self.rest_length * 0.3
-        self.target_length = self.rest_length - self.activation * (self.rest_length - min_length)
+        self.target_length = self.rest_length - self.activation * (
+            self.rest_length - min_length
+        )
 
     def apply_forces(self):
         p1 = self._get_world_position(self.obj1, self.anchor1)
@@ -97,9 +99,13 @@ class Actuator:
         rel_vel_y = v2_y - v1_y
         rel_vel_along = rel_vel_x * dir_x + rel_vel_y * dir_y
 
-        force_magnitude = self.stiffness * stretch + self.damping * rel_vel_along
+        force_magnitude = (
+            self.stiffness * stretch + self.damping * rel_vel_along
+        )
 
-        force_magnitude = max(-self.max_force, min(self.max_force, force_magnitude))
+        force_magnitude = max(
+            -self.max_force, min(self.max_force, force_magnitude)
+        )
 
         force_x = force_magnitude * dir_x
         force_y = force_magnitude * dir_y
@@ -115,7 +121,12 @@ class Actuator:
         if line_len == 0:
             return False
 
-        t = max(0, min(1, ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / (line_len ** 2)))
+        t = max(
+            0,
+            min(
+                1, ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / (line_len**2)
+            ),
+        )
         proj_x = x1 + t * (x2 - x1)
         proj_y = y1 + t * (y2 - y1)
 
@@ -151,4 +162,3 @@ class Actuator:
             self.max_force = max(0, float(value))
         elif key == "stiffness":
             self.stiffness = max(0, float(value))
-
