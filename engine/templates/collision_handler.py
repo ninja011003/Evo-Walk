@@ -88,7 +88,7 @@ class Collision_Handler:
         bodies=None,
         position_correction_percent=0.4,
         slop=0.01,
-        resting_threshold=0.5,
+        resting_threshold=0.9,
     ):
         self.bodies = (
             bodies if bodies is not None else []
