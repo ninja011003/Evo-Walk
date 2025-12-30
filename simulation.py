@@ -427,26 +427,105 @@ class PointConstraint:
         r_cross_ny = r_x
 
         angular_mass_x = self.box.body.inv_moi * r_cross_nx * r_cross_nx
-        angular_mass_y = self.box.body.inv_moi * r_cross_ny * r_cross_ny
 
-        eff_mass_x = w_bob + w_box + angular_mass_x
-        eff_mass_y = w_bob + w_box + angular_mass_y
 
-        if eff_mass_x > 0:
-            impulse_x = rel_vel_x / eff_mass_x
-            self.bob.body.velocity.x -= w_bob * impulse_x
-            self.box.body.velocity.x += w_box * impulse_x
-            self.box.body.ang_velocity += (
-                self.box.body.inv_moi * r_cross_nx * impulse_x
-            )
+class BoxBobDistanceConstraint:
+    def __init__(self, box, anchor_name, bob, length):
+        self.box = box
+        self.anchor_name = anchor_name
+        self.bob = bob
+        self.local_anchor = box.get_local_anchors()[anchor_name]
+        self.length = length
 
-        if eff_mass_y > 0:
-            impulse_y = rel_vel_y / eff_mass_y
-            self.bob.body.velocity.y -= w_bob * impulse_y
-            self.box.body.velocity.y += w_box * impulse_y
-            self.box.body.ang_velocity += (
-                self.box.body.inv_moi * r_cross_ny * impulse_y
-            )
+    def get_world_anchor(self):
+        cos_a = math.cos(self.box.body.orientation)
+        sin_a = math.sin(self.box.body.orientation)
+        wx = (
+            self.box.body.position.x
+            + self.local_anchor.x * cos_a
+            - self.local_anchor.y * sin_a
+        )
+        wy = (
+            self.box.body.position.y
+            + self.local_anchor.x * sin_a
+            + self.local_anchor.y * cos_a
+        )
+        return Vector(wx, wy)
+
+    def solve(self):
+        world_anchor = self.get_world_anchor()
+        bob_pos = self.bob.body.position
+
+        dx = bob_pos.x - world_anchor.x
+        dy = bob_pos.y - world_anchor.y
+        current_dist = (dx * dx + dy * dy) ** 0.5
+
+        if current_dist < 0.001:
+            return
+
+        err = current_dist - self.length
+        if abs(err) < 0.001:
+            return
+
+        nx = dx / current_dist
+        ny = dy / current_dist
+
+        w_bob = self.bob.body.inv_mass
+        w_box = self.box.body.inv_mass
+
+        r_x = world_anchor.x - self.box.body.position.x
+        r_y = world_anchor.y - self.box.body.position.y
+
+        r_cross_n = r_x * ny - r_y * nx
+        angular_mass = self.box.body.inv_moi * r_cross_n * r_cross_n
+
+        eff_mass = w_bob + w_box + angular_mass
+        if eff_mass <= 0:
+            return
+
+        lambda_val = err / eff_mass
+
+        self.bob.body.position.x -= w_bob * lambda_val * nx
+        self.bob.body.position.y -= w_bob * lambda_val * ny
+
+        self.box.body.position.x += w_box * lambda_val * nx
+        self.box.body.position.y += w_box * lambda_val * ny
+
+        self.box.body.orientation += self.box.body.inv_moi * r_cross_n * lambda_val
+
+        world_anchor = self.get_world_anchor()
+        r_x = world_anchor.x - self.box.body.position.x
+        r_y = world_anchor.y - self.box.body.position.y
+
+        box_anchor_vel_x = self.box.body.velocity.x - self.box.body.ang_velocity * r_y
+        box_anchor_vel_y = self.box.body.velocity.y + self.box.body.ang_velocity * r_x
+
+        rel_vel_x = self.bob.body.velocity.x - box_anchor_vel_x
+        rel_vel_y = self.bob.body.velocity.y - box_anchor_vel_y
+
+        dx = bob_pos.x - world_anchor.x
+        dy = bob_pos.y - world_anchor.y
+        current_dist = (dx * dx + dy * dy) ** 0.5
+        if current_dist < 0.001:
+            return
+
+        nx = dx / current_dist
+        ny = dy / current_dist
+
+        rel_vel_along = rel_vel_x * nx + rel_vel_y * ny
+
+        err_after = current_dist - self.length
+        if err_after * rel_vel_along > 0:
+            r_cross_n = r_x * ny - r_y * nx
+            angular_mass = self.box.body.inv_moi * r_cross_n * r_cross_n
+            eff_mass = w_bob + w_box + angular_mass
+            if eff_mass > 0:
+                impulse = rel_vel_along / eff_mass
+                self.bob.body.velocity.x -= w_bob * impulse * nx
+                self.bob.body.velocity.y -= w_bob * impulse * ny
+                self.box.body.velocity.x += w_box * impulse * nx
+                self.box.body.velocity.y += w_box * impulse * ny
+                self.box.body.ang_velocity += self.box.body.inv_moi * r_cross_n * impulse
 
 
 class Rod:
@@ -473,10 +552,12 @@ class Rod:
         is_box1 = isinstance(obj1, Box)
         is_box2 = isinstance(obj2, Box)
 
-        if is_box1 and anchor1 and not isinstance(obj2, Box):
-            self.point_constraint1 = PointConstraint(obj1, anchor1, obj2)
-        elif is_box2 and anchor2 and not isinstance(obj1, Box):
-            self.point_constraint1 = PointConstraint(obj2, anchor2, obj1)
+        if is_box1 and anchor1 and not is_box2:
+            self.point_constraint1 = BoxBobDistanceConstraint(obj1, anchor1, obj2, self.length)
+        elif is_box2 and anchor2 and not is_box1:
+            self.point_constraint1 = BoxBobDistanceConstraint(obj2, anchor2, obj1, self.length)
+        elif is_box1 and is_box2:
+            self.constraint = Contraint(obj1.body, obj2.body, self.length)
         else:
             self.constraint = Contraint(obj1.body, obj2.body, self.length)
 
