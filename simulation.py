@@ -1,5 +1,6 @@
 import json
 import os
+import math
 from engine.templates.vector import Vector
 from engine.templates.body import Body
 from engine.templates.contraint import Contraint
@@ -185,6 +186,71 @@ class Box:
                 nearest = name
         return nearest
 
+    def get_resize_handles(self):
+        hw = self.width / 2
+        hh = self.height / 2
+        return {
+            "top_left": Vector(-hw, -hh),
+            "top_right": Vector(hw, -hh),
+            "bottom_left": Vector(-hw, hh),
+            "bottom_right": Vector(hw, hh),
+            "top": Vector(0, -hh),
+            "bottom": Vector(0, hh),
+            "left": Vector(-hw, 0),
+            "right": Vector(hw, 0),
+        }
+
+    def get_world_resize_handles(self):
+        cos_a = math.cos(self.body.orientation)
+        sin_a = math.sin(self.body.orientation)
+        cx, cy = self.body.position.x, self.body.position.y
+        result = {}
+        for name, local in self.get_resize_handles().items():
+            wx = cx + local.x * cos_a - local.y * sin_a
+            wy = cy + local.x * sin_a + local.y * cos_a
+            result[name] = (wx, wy)
+        return result
+
+    def get_resize_handle_at(self, x, y, threshold=12):
+        handles = self.get_world_resize_handles()
+        for name, (hx, hy) in handles.items():
+            dist = ((x - hx) ** 2 + (y - hy) ** 2) ** 0.5
+            if dist < threshold:
+                return name
+        return None
+
+    def resize(self, handle, world_x, world_y):
+        cos_a = math.cos(-self.body.orientation)
+        sin_a = math.sin(-self.body.orientation)
+        dx = world_x - self.body.position.x
+        dy = world_y - self.body.position.y
+        local_x = dx * cos_a - dy * sin_a
+        local_y = dx * sin_a + dy * cos_a
+
+        min_size = 10
+
+        if handle in ("top_left", "top_right", "bottom_left", "bottom_right"):
+            new_hw = abs(local_x)
+            new_hh = abs(local_y)
+            self.width = max(min_size, new_hw * 2)
+            self.height = max(min_size, new_hh * 2)
+        elif handle == "left":
+            self.width = max(min_size, abs(local_x) * 2)
+        elif handle == "right":
+            self.width = max(min_size, abs(local_x) * 2)
+        elif handle == "top":
+            self.height = max(min_size, abs(local_y) * 2)
+        elif handle == "bottom":
+            self.height = max(min_size, abs(local_y) * 2)
+
+        self.body.width = self.width
+        self.body.height = self.height
+        if self.body.mass > 0:
+            self.body.moi = (self.body.mass / 12) * (
+                self.width**2 + self.height**2
+            )
+            self.body.inv_moi = 1 / self.body.moi
+
     def contains(self, x, y):
         import math
 
@@ -278,7 +344,6 @@ class Box:
             self.body.apply_force(Vector(0, float(value)))
 
 
-import math
 
 
 class PointConstraint:
@@ -690,7 +755,7 @@ class SimulationEngine:
                 )
 
         for actuator in self.actuators:
-            actuator.apply_forces()
+            actuator.apply_forces(dt)
 
         for bob in self.bobs:
             if bob != self.dragging_bob:
@@ -828,7 +893,8 @@ class SimulationEngine:
                         "anchor2": actuator.anchor2,
                         "rest_length": actuator.rest_length,
                         "max_force": actuator.max_force,
-                        "stiffness": actuator.stiffness,
+                        "max_stiffness": actuator.max_stiffness,
+                        "damping": actuator.damping,
                     }
                 )
 
@@ -919,11 +985,12 @@ class SimulationEngine:
                 if actuator:
                     if "rest_length" in actuator_data:
                         actuator.rest_length = actuator_data["rest_length"]
-                        actuator.target_length = actuator.rest_length
                     if "max_force" in actuator_data:
                         actuator.max_force = actuator_data["max_force"]
-                    if "stiffness" in actuator_data:
-                        actuator.stiffness = actuator_data["stiffness"]
+                    if "max_stiffness" in actuator_data:
+                        actuator.max_stiffness = actuator_data["max_stiffness"]
+                    if "damping" in actuator_data:
+                        actuator.damping = actuator_data["damping"]
 
 
 def load_templates():

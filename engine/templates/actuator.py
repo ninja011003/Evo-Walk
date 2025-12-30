@@ -18,11 +18,12 @@ class Actuator:
         dx = p2.x - p1.x
         dy = p2.y - p1.y
         self.rest_length = (dx * dx + dy * dy) ** 0.5
-        self.target_length = self.rest_length
-        self.max_force = 5000.0
-        self.stiffness = 2000.0
-        self.damping = 50.0
+        self.max_force = 10000.0
+        self.max_stiffness = 5000.0
+        self.damping = 100.0
         self.activation = 0.0
+        self.target_activation = 0.0
+        self.activation_tau = 0.1
         self.name = f"Actuator_{self.id}"
 
     def _is_box(self, obj):
@@ -54,13 +55,15 @@ class Actuator:
         return (dx * dx + dy * dy) ** 0.5
 
     def set_activation(self, value):
-        self.activation = max(0.0, min(1.0, value))
-        min_length = self.rest_length * 0.3
-        self.target_length = self.rest_length - self.activation * (
-            self.rest_length - min_length
-        )
+        self.target_activation = max(0.0, min(1.0, value))
 
-    def apply_forces(self):
+    def update_activation(self, dt):
+        alpha = 1.0 - math.exp(-dt / self.activation_tau)
+        self.activation += (self.target_activation - self.activation) * alpha
+
+    def apply_forces(self, dt):
+        self.update_activation(dt)
+
         p1 = self._get_world_position(self.obj1, self.anchor1)
         p2 = self._get_world_position(self.obj2, self.anchor2)
 
@@ -68,13 +71,22 @@ class Actuator:
         dy = p2.y - p1.y
         current_length = (dx * dx + dy * dy) ** 0.5
 
-        if current_length < 0.001:
+        if current_length < 1.0:
+            sep_force = 500.0
+            if current_length > 0.001:
+                dir_x = dx / current_length
+                dir_y = dy / current_length
+            else:
+                dir_x = 0.0
+                dir_y = 1.0
+            self.obj1.body.apply_point_force(Vector(-sep_force * dir_x, -sep_force * dir_y), p1)
+            self.obj2.body.apply_point_force(Vector(sep_force * dir_x, sep_force * dir_y), p2)
             return
 
         dir_x = dx / current_length
         dir_y = dy / current_length
 
-        stretch = current_length - self.target_length
+        stretch = current_length - self.rest_length
 
         local1 = self._get_local_anchor(self.obj1, self.anchor1)
         local2 = self._get_local_anchor(self.obj2, self.anchor2)
@@ -99,19 +111,32 @@ class Actuator:
         rel_vel_y = v2_y - v1_y
         rel_vel_along = rel_vel_x * dir_x + rel_vel_y * dir_y
 
-        force_magnitude = (
-            self.stiffness * stretch + self.damping * rel_vel_along
-        )
+        effective_stiffness = self.activation * self.max_stiffness
+        effective_max_force = self.activation * self.max_force
 
-        force_magnitude = max(
-            -self.max_force, min(self.max_force, force_magnitude)
-        )
+        force_magnitude = effective_stiffness * stretch - self.damping * rel_vel_along
+
+        if force_magnitude < 0:
+            force_magnitude = 0
+
+        force_magnitude = min(force_magnitude, effective_max_force)
 
         force_x = force_magnitude * dir_x
         force_y = force_magnitude * dir_y
 
-        self.obj1.body.apply_point_force(Vector(force_x, force_y), p1)
-        self.obj2.body.apply_point_force(Vector(-force_x, -force_y), p2)
+        inv_mass1 = self.obj1.body.inv_mass
+        inv_mass2 = self.obj2.body.inv_mass
+        total_inv_mass = inv_mass1 + inv_mass2
+
+        if total_inv_mass > 0:
+            w1 = inv_mass1 / total_inv_mass
+            w2 = inv_mass2 / total_inv_mass
+        else:
+            w1 = 0.5
+            w2 = 0.5
+
+        self.obj1.body.apply_point_force(Vector(force_x * w1 * 2, force_y * w1 * 2), p1)
+        self.obj2.body.apply_point_force(Vector(-force_x * w2 * 2, -force_y * w2 * 2), p2)
 
     def contains(self, x, y):
         x1, y1 = self.get_endpoint1()
@@ -135,8 +160,6 @@ class Actuator:
 
     def get_debug_info(self):
         current_len = self.cur_length()
-        p1 = self.get_endpoint1()
-        p2 = self.get_endpoint2()
         return {
             "type": "Actuator",
             "id": self.id,
@@ -146,19 +169,24 @@ class Actuator:
             "anchor1": self.anchor1 or "center",
             "anchor2": self.anchor2 or "center",
             "rest_length": round(self.rest_length, 2),
-            "target_length": round(self.target_length, 2),
             "current_length": round(current_len, 2),
             "activation": round(self.activation, 2),
+            "target_act": round(self.target_activation, 2),
             "max_force": round(self.max_force, 2),
-            "stiffness": round(self.stiffness, 2),
+            "max_stiffness": round(self.max_stiffness, 2),
+            "damping": round(self.damping, 2),
         }
 
     def set_property(self, key, value):
-        if key == "target_length":
-            self.target_length = max(1, float(value))
+        if key == "rest_length":
+            self.rest_length = max(1, float(value))
         elif key == "activation":
+            self.set_activation(float(value))
+        elif key == "target_act":
             self.set_activation(float(value))
         elif key == "max_force":
             self.max_force = max(0, float(value))
-        elif key == "stiffness":
-            self.stiffness = max(0, float(value))
+        elif key == "max_stiffness":
+            self.max_stiffness = max(0, float(value))
+        elif key == "damping":
+            self.damping = max(0, float(value))

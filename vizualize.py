@@ -909,6 +909,8 @@ class SimulationUI:
         self.current_dt = 0
         self.force_start = None
         self.force_target = None
+        self.resizing_box = None
+        self.resize_handle = None
 
         self.debug_panel = DebugPanel(
             WIDTH - DEBUG_PANEL_WIDTH - 15,
@@ -1093,6 +1095,8 @@ class SimulationUI:
         self.connecting_anchor = None
         self.force_start = None
         self.force_target = None
+        self.resizing_box = None
+        self.resize_handle = None
         self.debug_panel.set_selected(None)
 
     def get_button_at(self, x, y):
@@ -1141,6 +1145,11 @@ class SimulationUI:
             clicked_rod = (
                 self.engine.get_rod_at(x, y) if not clicked_body else None
             )
+            clicked_actuator = (
+                self.engine.get_actuator_at(x, y)
+                if not clicked_body and not clicked_rod
+                else None
+            )
 
             if self.mode == "force":
                 if clicked_body:
@@ -1153,6 +1162,8 @@ class SimulationUI:
                 self.debug_panel.set_selected(clicked_body)
             elif clicked_rod:
                 self.debug_panel.set_selected(clicked_rod)
+            elif clicked_actuator:
+                self.debug_panel.set_selected(clicked_actuator)
             else:
                 self.debug_panel.set_selected(
                     self.engine.get_debug_info(
@@ -1172,8 +1183,14 @@ class SimulationUI:
                         self.engine.set_dragging(new_bob)
                         self.debug_panel.set_selected(new_bob)
                 elif self.mode == "box":
-                    if clicked_box:
-                        self.engine.set_dragging(clicked_box)
+                    if clicked_box and clicked_box != self.engine.ground:
+                        handle = clicked_box.get_resize_handle_at(x, y)
+                        if handle:
+                            self.resizing_box = clicked_box
+                            self.resize_handle = handle
+                            self.debug_panel.set_selected(clicked_box)
+                        else:
+                            self.engine.set_dragging(clicked_box)
                     elif not clicked_rod and not clicked_bob:
                         new_box = self.engine.create_box(x, y, pinned=False)
                         self.engine.set_dragging(new_box)
@@ -1277,10 +1294,15 @@ class SimulationUI:
                     )
             self.force_start = None
             self.force_target = None
+            self.resizing_box = None
+            self.resize_handle = None
             self.engine.release()
 
         elif event.type == pygame.MOUSEMOTION:
-            if self.engine.dragging_bob:
+            if self.resizing_box and self.resize_handle:
+                x, y = event.pos
+                self.resizing_box.resize(self.resize_handle, x, y)
+            elif self.engine.dragging_bob:
                 x, y = event.pos
                 y = max(CANVAS_TOP + BOB_RADIUS, y)
                 self.engine.move(self.engine.dragging_bob, x, y)
@@ -1479,6 +1501,18 @@ class SimulationUI:
                         pygame.draw.circle(
                             surface, (255, 255, 255), (ax_i, ay_i), 5, 1
                         )
+
+            if self.mode == "box" and box != self.engine.ground:
+                handles = box.get_world_resize_handles()
+                active_handle = box.get_resize_handle_at(mx, my)
+                for name, (hx, hy) in handles.items():
+                    hx_i, hy_i = int(hx), int(hy)
+                    if name == active_handle or (self.resizing_box == box and self.resize_handle == name):
+                        pygame.draw.rect(surface, (255, 200, 100), (hx_i - 6, hy_i - 6, 12, 12))
+                        pygame.draw.rect(surface, (255, 255, 255), (hx_i - 6, hy_i - 6, 12, 12), 2)
+                    else:
+                        pygame.draw.rect(surface, (100, 180, 255), (hx_i - 4, hy_i - 4, 8, 8))
+                        pygame.draw.rect(surface, (255, 255, 255), (hx_i - 4, hy_i - 4, 8, 8), 1)
 
         for bob in self.engine.bobs:
             x = int(bob.body.position.x)
