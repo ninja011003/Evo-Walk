@@ -133,6 +133,9 @@ class Human:
         frame = 0
         self.engine.start()
         
+        initial_com_x = self.get_center_of_mass()[0]
+        score_font = pygame.font.SysFont("SF Mono", 24, bold=True)
+        
         while running:
             dt = self.ui.tick()
 
@@ -153,6 +156,17 @@ class Human:
 
             self.ui.update(dt)
             self.ui.draw(self.ui.screen)
+            
+            current_com_x = self.get_center_of_mass()[0]
+            distance_traveled = current_com_x - initial_com_x
+            
+            score_text = f"Distance: {distance_traveled:.1f} px"
+            score_surface = score_font.render(score_text, True, (80, 200, 120))
+            score_bg = pygame.Surface((score_surface.get_width() + 20, score_surface.get_height() + 10), pygame.SRCALPHA)
+            score_bg.fill((28, 28, 36, 220))
+            self.ui.screen.blit(score_bg, (20, 70))
+            self.ui.screen.blit(score_surface, (30, 75))
+            
             pygame.display.flip()
 
         pygame.quit()
