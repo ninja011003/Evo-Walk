@@ -661,7 +661,7 @@ class SimulationEngine:
         self.dragging_box = None
         self.collision_handler = Collision_Handler()
         self.ground = self.create_box(
-            width / 2, height - 20, width, 40, pinned=True
+            width / 2, height - 20, 100000, 40, pinned=True
         )
 
     def create_bob(self, x, y, pinned=False):
@@ -810,7 +810,7 @@ class SimulationEngine:
         Rod._id_counter = 0
         Actuator._id_counter = 0
         self.ground = self.create_box(
-            self.width / 2, self.height - 20, self.width, 40, pinned=True
+            self.width / 2, self.height - 20, 100000, 40, pinned=True
         )
 
     def update(self, dt):
