@@ -911,6 +911,7 @@ class SimulationUI:
         self.force_target = None
         self.resizing_box = None
         self.resize_handle = None
+        self.camera_x = 0
 
         self.debug_panel = DebugPanel(
             WIDTH - DEBUG_PANEL_WIDTH - 15,
@@ -1344,7 +1345,8 @@ class SimulationUI:
 
     def draw_grid(self, surface):
         spacing = 40
-        for x in range(0, WIDTH, spacing):
+        offset = int(self.camera_x) % spacing
+        for x in range(-offset, WIDTH + spacing, spacing):
             pygame.draw.line(
                 surface, GRID_COLOR, (x, CANVAS_TOP), (x, HEIGHT), 1
             )
@@ -1378,11 +1380,13 @@ class SimulationUI:
             status = font_small.render("PAUSED", True, (255, 107, 107))
         surface.blit(status, (640, 22))
 
+        cam = int(self.camera_x)
+
         for rod in self.engine.rods:
             p1 = rod.get_endpoint1()
             p2 = rod.get_endpoint2()
-            x1, y1 = int(p1[0]), int(p1[1])
-            x2, y2 = int(p2[0]), int(p2[1])
+            x1, y1 = int(p1[0]) - cam, int(p1[1])
+            x2, y2 = int(p2[0]) - cam, int(p2[1])
 
             is_selected = self.debug_panel.selected_object == rod
             color = SELECTED_COLOR if is_selected else ROD_COLOR
@@ -1397,8 +1401,8 @@ class SimulationUI:
         for actuator in self.engine.actuators:
             p1 = actuator.get_endpoint1()
             p2 = actuator.get_endpoint2()
-            x1, y1 = int(p1[0]), int(p1[1])
-            x2, y2 = int(p2[0]), int(p2[1])
+            x1, y1 = int(p1[0]) - cam, int(p1[1])
+            x2, y2 = int(p2[0]) - cam, int(p2[1])
 
             is_selected = self.debug_panel.selected_object == actuator
             base_color = SELECTED_COLOR if is_selected else ACTUATOR_COLOR
@@ -1430,20 +1434,21 @@ class SimulationUI:
                 anchor_pos = self.connecting_body.get_world_anchor(
                     self.connecting_anchor
                 )
-                x1, y1 = int(anchor_pos.x), int(anchor_pos.y)
+                x1, y1 = int(anchor_pos.x) - cam, int(anchor_pos.y)
             else:
-                x1 = int(self.connecting_body.body.position.x)
+                x1 = int(self.connecting_body.body.position.x) - cam
                 y1 = int(self.connecting_body.body.position.y)
             pygame.draw.line(surface, (80, 80, 100), (x1, y1), (mx, my), 2)
 
         mx, my = pygame.mouse.get_pos()
-        hovered_bob = self.engine.get_bob_at(mx, my)
+        world_mx = mx + cam
+        hovered_bob = self.engine.get_bob_at(world_mx, my)
         hovered_box = (
-            self.engine.get_box_at(mx, my) if not hovered_bob else None
+            self.engine.get_box_at(world_mx, my) if not hovered_bob else None
         )
 
         for box in self.engine.boxes:
-            cx = box.body.position.x
+            cx = box.body.position.x - cam
             cy = box.body.position.y
             angle = box.body.orientation
             hw = box.width / 2
@@ -1485,8 +1490,8 @@ class SimulationUI:
             if self.mode in ("rod", "actuator") and box != self.engine.ground:
                 anchors = box.get_all_world_anchors()
                 for name, (ax, ay) in anchors.items():
-                    ax_i, ay_i = int(ax), int(ay)
-                    dist_sq = (mx - ax) ** 2 + (my - ay) ** 2
+                    ax_i, ay_i = int(ax) - cam, int(ay)
+                    dist_sq = (mx - ax_i) ** 2 + (my - ay) ** 2
                     if dist_sq < 400:
                         pygame.draw.circle(
                             surface, (255, 200, 100), (ax_i, ay_i), 8
@@ -1504,9 +1509,9 @@ class SimulationUI:
 
             if self.mode == "box" and box != self.engine.ground:
                 handles = box.get_world_resize_handles()
-                active_handle = box.get_resize_handle_at(mx, my)
+                active_handle = box.get_resize_handle_at(mx + cam, my)
                 for name, (hx, hy) in handles.items():
-                    hx_i, hy_i = int(hx), int(hy)
+                    hx_i, hy_i = int(hx) - cam, int(hy)
                     if name == active_handle or (self.resizing_box == box and self.resize_handle == name):
                         pygame.draw.rect(surface, (255, 200, 100), (hx_i - 6, hy_i - 6, 12, 12))
                         pygame.draw.rect(surface, (255, 255, 255), (hx_i - 6, hy_i - 6, 12, 12), 2)
@@ -1515,7 +1520,7 @@ class SimulationUI:
                         pygame.draw.rect(surface, (255, 255, 255), (hx_i - 4, hy_i - 4, 8, 8), 1)
 
         for bob in self.engine.bobs:
-            x = int(bob.body.position.x)
+            x = int(bob.body.position.x) - cam
             y = int(bob.body.position.y)
 
             is_selected = self.debug_panel.selected_object == bob
@@ -1543,7 +1548,7 @@ class SimulationUI:
                 pygame.draw.circle(surface, (255, 255, 255), (x, y), 4)
 
         if self.mode == "force" and self.force_start and self.force_target:
-            sx, sy = self.force_start
+            sx, sy = self.force_start[0] - cam, self.force_start[1]
             ex, ey = pygame.mouse.get_pos()
             dx = ex - sx
             dy = ey - sy

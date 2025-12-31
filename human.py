@@ -154,10 +154,13 @@ class Human:
                 self.set_activations(activations)
                 frame += 1
 
+            current_com_x = self.get_center_of_mass()[0]
+            target_camera_x = current_com_x - self.width / 2
+            self.ui.camera_x += (target_camera_x - self.ui.camera_x) * 0.1
+
             self.ui.update(dt)
             self.ui.draw(self.ui.screen)
             
-            current_com_x = self.get_center_of_mass()[0]
             distance_traveled = current_com_x - initial_com_x
             
             score_text = f"Distance: {distance_traveled:.1f} px"
