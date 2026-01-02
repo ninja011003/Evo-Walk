@@ -4,12 +4,14 @@ import pygame
 from vizualize import SimulationUI
 import argparse
 
-class Human:
 
+class Human:
     DEFAULT_WIDTH = 1280
     DEFAULT_HEIGHT = 720
 
-    def __init__(self, headless: bool = False, width: int = None, height: int = None):
+    def __init__(
+        self, headless: bool = False, width: int = None, height: int = None
+    ):
         self.headless = headless
         self.width = width or self.DEFAULT_WIDTH
         self.height = height or self.DEFAULT_HEIGHT
@@ -25,7 +27,7 @@ class Human:
         if "bipedel_v3" not in templates:
             raise ValueError(
                 "template 'bipedel_v3' not found in templates.json. "
-                )
+            )
         template_data = templates["bipedel_v3"]
         self.engine.load_template(template_data)
 
@@ -40,7 +42,9 @@ class Human:
                 "provide one activation value per muscle."
             )
 
-        for i, (actuator, activation) in enumerate(zip(self.actuators, activations)):
+        for i, (actuator, activation) in enumerate(
+            zip(self.actuators, activations)
+        ):
             clamped = max(0.0, min(1.0, float(activation)))
             actuator.set_activation(clamped)
 
@@ -74,29 +78,33 @@ class Human:
         for box in self.engine.boxes:
             if box == self.engine.ground:
                 continue
-            positions.append({
-                "name": box.name,
-                "x": box.body.position.x,
-                "y": box.body.position.y,
-                "orientation": box.body.orientation,
-                "velocity_x": box.body.velocity.x,
-                "velocity_y": box.body.velocity.y,
-            })
+            positions.append(
+                {
+                    "name": box.name,
+                    "x": box.body.position.x,
+                    "y": box.body.position.y,
+                    "orientation": box.body.orientation,
+                    "velocity_x": box.body.velocity.x,
+                    "velocity_y": box.body.velocity.y,
+                }
+            )
         return positions
 
     def get_bobs_positions(self) -> list:
         positions = []
         for bob in self.engine.bobs:
-            positions.append({
-                "name": bob.name,
-                "x": bob.body.position.x,
-                "y": bob.body.position.y,
-                "velocity_x": bob.body.velocity.x,
-                "velocity_y": bob.body.velocity.y,
-            })
+            positions.append(
+                {
+                    "name": bob.name,
+                    "x": bob.body.position.x,
+                    "y": bob.body.position.y,
+                    "velocity_x": bob.body.velocity.x,
+                    "velocity_y": bob.body.velocity.y,
+                }
+            )
         return positions
 
-    def step(self, dt: float = 1/60) -> dict:
+    def step(self, dt: float = 1 / 60) -> dict:
         if not self.engine.running:
             self.engine.start()
 
@@ -126,16 +134,14 @@ class Human:
 
     def run_with_ui(self):
         if self.headless:
-            raise RuntimeError(
-                "mudiyadhuu podaaa"
-            )
+            raise RuntimeError("mudiyadhuu podaaa")
         running = True
         frame = 0
         self.engine.start()
-        
+
         initial_com_x = self.get_center_of_mass()[0]
         score_font = pygame.font.SysFont("SF Mono", 24, bold=True)
-        
+
         while running:
             dt = self.ui.tick()
 
@@ -160,33 +166,39 @@ class Human:
 
             self.ui.update(dt)
             self.ui.draw(self.ui.screen)
-            
+
             distance_traveled = current_com_x - initial_com_x
-            
+
             score_text = f"Distance: {distance_traveled:.1f} px"
             score_surface = score_font.render(score_text, True, (80, 200, 120))
-            score_bg = pygame.Surface((score_surface.get_width() + 20, score_surface.get_height() + 10), pygame.SRCALPHA)
+            score_bg = pygame.Surface(
+                (
+                    score_surface.get_width() + 20,
+                    score_surface.get_height() + 10,
+                ),
+                pygame.SRCALPHA,
+            )
             score_bg.fill((28, 28, 36, 220))
             self.ui.screen.blit(score_bg, (20, 70))
             self.ui.screen.blit(score_surface, (30, 75))
-            
+
             pygame.display.flip()
 
         pygame.quit()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Human bipedal walker simulation")
+    parser = argparse.ArgumentParser(
+        description="Human bipedal walker simulation"
+    )
     parser.add_argument(
-        "--headless", 
-        action="store_true", 
-        help="run in headless mode (no UI)"
+        "--headless", action="store_true", help="run in headless mode (no UI)"
     )
     parser.add_argument(
         "--steps",
         type=int,
         default=100,
-        help="number of simulation steps to run in headless mode"
+        help="number of simulation steps to run in headless mode",
     )
     args = parser.parse_args()
 
@@ -197,7 +209,7 @@ if __name__ == "__main__":
 
         for i in range(args.steps):
             phase = (i % 60) / 60.0
-            
+
             if phase < 0.5:
                 activations = [0.8, 0.2, 0.2, 0.8]
             else:

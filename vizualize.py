@@ -1512,12 +1512,30 @@ class SimulationUI:
                 active_handle = box.get_resize_handle_at(mx + cam, my)
                 for name, (hx, hy) in handles.items():
                     hx_i, hy_i = int(hx) - cam, int(hy)
-                    if name == active_handle or (self.resizing_box == box and self.resize_handle == name):
-                        pygame.draw.rect(surface, (255, 200, 100), (hx_i - 6, hy_i - 6, 12, 12))
-                        pygame.draw.rect(surface, (255, 255, 255), (hx_i - 6, hy_i - 6, 12, 12), 2)
+                    if name == active_handle or (
+                        self.resizing_box == box and self.resize_handle == name
+                    ):
+                        pygame.draw.rect(
+                            surface,
+                            (255, 200, 100),
+                            (hx_i - 6, hy_i - 6, 12, 12),
+                        )
+                        pygame.draw.rect(
+                            surface,
+                            (255, 255, 255),
+                            (hx_i - 6, hy_i - 6, 12, 12),
+                            2,
+                        )
                     else:
-                        pygame.draw.rect(surface, (100, 180, 255), (hx_i - 4, hy_i - 4, 8, 8))
-                        pygame.draw.rect(surface, (255, 255, 255), (hx_i - 4, hy_i - 4, 8, 8), 1)
+                        pygame.draw.rect(
+                            surface, (100, 180, 255), (hx_i - 4, hy_i - 4, 8, 8)
+                        )
+                        pygame.draw.rect(
+                            surface,
+                            (255, 255, 255),
+                            (hx_i - 4, hy_i - 4, 8, 8),
+                            1,
+                        )
 
         for bob in self.engine.bobs:
             x = int(bob.body.position.x) - cam

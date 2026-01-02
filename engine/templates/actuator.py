@@ -79,8 +79,12 @@ class Actuator:
             else:
                 dir_x = 0.0
                 dir_y = 1.0
-            self.obj1.body.apply_point_force(Vector(-sep_force * dir_x, -sep_force * dir_y), p1)
-            self.obj2.body.apply_point_force(Vector(sep_force * dir_x, sep_force * dir_y), p2)
+            self.obj1.body.apply_point_force(
+                Vector(-sep_force * dir_x, -sep_force * dir_y), p1
+            )
+            self.obj2.body.apply_point_force(
+                Vector(sep_force * dir_x, sep_force * dir_y), p2
+            )
             return
 
         dir_x = dx / current_length
@@ -114,7 +118,9 @@ class Actuator:
         effective_stiffness = self.activation * self.max_stiffness
         effective_max_force = self.activation * self.max_force
 
-        force_magnitude = effective_stiffness * stretch - self.damping * rel_vel_along
+        force_magnitude = (
+            effective_stiffness * stretch - self.damping * rel_vel_along
+        )
 
         if force_magnitude < 0:
             force_magnitude = 0
@@ -135,8 +141,12 @@ class Actuator:
             w1 = 0.5
             w2 = 0.5
 
-        self.obj1.body.apply_point_force(Vector(force_x * w1 * 2, force_y * w1 * 2), p1)
-        self.obj2.body.apply_point_force(Vector(-force_x * w2 * 2, -force_y * w2 * 2), p2)
+        self.obj1.body.apply_point_force(
+            Vector(force_x * w1 * 2, force_y * w1 * 2), p1
+        )
+        self.obj2.body.apply_point_force(
+            Vector(-force_x * w2 * 2, -force_y * w2 * 2), p2
+        )
 
     def contains(self, x, y):
         x1, y1 = self.get_endpoint1()

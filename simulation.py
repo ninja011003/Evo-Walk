@@ -344,8 +344,6 @@ class Box:
             self.body.apply_force(Vector(0, float(value)))
 
 
-
-
 class PointConstraint:
     def __init__(self, box, anchor_name, bob):
         self.box = box
@@ -491,14 +489,20 @@ class BoxBobDistanceConstraint:
         self.box.body.position.x += w_box * lambda_val * nx
         self.box.body.position.y += w_box * lambda_val * ny
 
-        self.box.body.orientation += self.box.body.inv_moi * r_cross_n * lambda_val
+        self.box.body.orientation += (
+            self.box.body.inv_moi * r_cross_n * lambda_val
+        )
 
         world_anchor = self.get_world_anchor()
         r_x = world_anchor.x - self.box.body.position.x
         r_y = world_anchor.y - self.box.body.position.y
 
-        box_anchor_vel_x = self.box.body.velocity.x - self.box.body.ang_velocity * r_y
-        box_anchor_vel_y = self.box.body.velocity.y + self.box.body.ang_velocity * r_x
+        box_anchor_vel_x = (
+            self.box.body.velocity.x - self.box.body.ang_velocity * r_y
+        )
+        box_anchor_vel_y = (
+            self.box.body.velocity.y + self.box.body.ang_velocity * r_x
+        )
 
         rel_vel_x = self.bob.body.velocity.x - box_anchor_vel_x
         rel_vel_y = self.bob.body.velocity.y - box_anchor_vel_y
@@ -525,7 +529,9 @@ class BoxBobDistanceConstraint:
                 self.bob.body.velocity.y -= w_bob * impulse * ny
                 self.box.body.velocity.x += w_box * impulse * nx
                 self.box.body.velocity.y += w_box * impulse * ny
-                self.box.body.ang_velocity += self.box.body.inv_moi * r_cross_n * impulse
+                self.box.body.ang_velocity += (
+                    self.box.body.inv_moi * r_cross_n * impulse
+                )
 
 
 class Rod:
@@ -553,9 +559,13 @@ class Rod:
         is_box2 = isinstance(obj2, Box)
 
         if is_box1 and anchor1 and not is_box2:
-            self.point_constraint1 = BoxBobDistanceConstraint(obj1, anchor1, obj2, self.length)
+            self.point_constraint1 = BoxBobDistanceConstraint(
+                obj1, anchor1, obj2, self.length
+            )
         elif is_box2 and anchor2 and not is_box1:
-            self.point_constraint1 = BoxBobDistanceConstraint(obj2, anchor2, obj1, self.length)
+            self.point_constraint1 = BoxBobDistanceConstraint(
+                obj2, anchor2, obj1, self.length
+            )
         elif is_box1 and is_box2:
             self.constraint = Contraint(obj1.body, obj2.body, self.length)
         else:
