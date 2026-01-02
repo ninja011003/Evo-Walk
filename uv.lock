@@ -7,11 +7,24 @@ name = "evo-walk"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "neat-python" },
     { name = "pygame" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pygame", specifier = ">=2.6.1" }]
+requires-dist = [
+    { name = "neat-python", specifier = ">=1.1.0" },
+    { name = "pygame", specifier = ">=2.6.1" },
+]
+
+[[package]]
+name = "neat-python"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d4/4c/37f1c9e17704ebb03721faa8099275e83a400541b056be7176780844a735/neat_python-1.1.0.tar.gz", hash = "sha256:8f60a67dcae9c3b0aca72144517608007d9ad5d31f5091933ec49228b6177569", size = 125954, upload-time = "2025-12-06T00:54:59.104Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d4/2b/92e2d572f8ce06d704a22b3497281c22f6b58de3492747a2e1cd813812a1/neat_python-1.1.0-py3-none-any.whl", hash = "sha256:08e7fda8d96ea50c7f01e33e11e00a2ee859b5af69de095b35b221cd95db4058", size = 53992, upload-time = "2025-12-06T00:54:57.7Z" },
+]
 
 [[package]]
 name = "pygame"
