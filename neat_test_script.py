@@ -3,27 +3,44 @@ import os
 import pygame
 from human import Human
 from neural_inputs import input_vec
+import math
 
 SIMULATION_STEPS = 500
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
-
+NORMAL_TORSO_BALANCE = 500.0 #indeal torso height for bance body
 
 def eval_genome(genome, config):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
     human = Human(headless=True)
     human.start()
-    initial_x = human.get_center_of_mass()[0]
-    total_balance  = 0
+
+    torso = human.engine.boxes[1]
+    prev_x = torso.body.position.x
+
+    forward_reward = 0.0
+    effort_penalty = 0.0
+    penalty = 0.0
+
     for _ in range(SIMULATION_STEPS):
         inputs = input_vec(human)
         outputs = net.activate(inputs)
+
         activations = [max(0.0, min(1.0, o)) for o in outputs]
         human.set_activations(activations)
         human.step()
-        total_balance += human.
-    final_x = human.get_center_of_mass()[0]
-    score = 
-    return final_x - initial_x
+
+        curr_x = torso.body.position.x
+        forward_reward += curr_x - prev_x
+        prev_x = curr_x
+
+        if torso.body.position.y > 550.0:
+            penalty -= 5000.0
+
+        effort_penalty += sum(abs(a) for a in activations)
+
+    return forward_reward - 0.01 * effort_penalty + penalty
+
+
 
 
 def eval_genomes(genomes, config):
@@ -89,8 +106,9 @@ def run():
     while True:
         best = pop.run(eval_genomes, 1)
         print(f"\nGeneration {generation} complete. Best fitness: {best.fitness:.2f}")
-        print("Showing best genome with UI. Press ESC or close window to continue.")
-        run_best_with_ui(best, config)
+        if generation % 10 == 0:
+            print("Showing best genome with UI. Press ESC or close window to continue.")
+            run_best_with_ui(best, config)
         generation += 1
 
 

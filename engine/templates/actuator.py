@@ -18,7 +18,7 @@ class Actuator:
         dx = p2.x - p1.x
         dy = p2.y - p1.y
         self.rest_length = (dx * dx + dy * dy) ** 0.5
-        self.max_force = 10000.0
+        self.max_force = 100000.0
         self.max_stiffness = 5000.0
         self.damping = 100.0
         self.activation = 0.0

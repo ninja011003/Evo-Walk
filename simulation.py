@@ -671,7 +671,7 @@ class SimulationEngine:
         self.dragging_box = None
         self.collision_handler = Collision_Handler()
         self.ground = self.create_box(
-            width / 2, height - 20, 100000, 40, pinned=True
+            width / 2, height - 20, 10000000000000000000, 40, pinned=True
         )
 
     def create_bob(self, x, y, pinned=False):
