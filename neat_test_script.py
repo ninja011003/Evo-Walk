@@ -1,5 +1,10 @@
 import neat
 import os
+import sys
+import select
+import tty
+import termios
+import time
 import pygame
 from human import Human
 from neural_inputs import input_vec
@@ -7,7 +12,12 @@ import math
 
 SIMULATION_STEPS = 500
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
-NORMAL_TORSO_BALANCE = 500.0 #indeal torso height for bance body
+NORMAL_TORSO_BALANCE = 500.0
+
+def check_key():
+    if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+        return sys.stdin.read(1)
+    return None
 
 def eval_genome(genome, config):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
@@ -34,7 +44,7 @@ def eval_genome(genome, config):
         prev_x = curr_x
 
         if torso.body.position.y > 550.0:
-            penalty -= 5000.0
+            penalty -= 50
 
         effort_penalty += sum(abs(a) for a in activations)
 
@@ -102,14 +112,33 @@ def run():
     pop.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     pop.add_reporter(stats)
-    generation = 0
-    while True:
-        best = pop.run(eval_genomes, 1)
-        print(f"\nGeneration {generation} complete. Best fitness: {best.fitness:.2f}")
-        if generation % 10 == 0:
-            print("Showing best genome with UI. Press ESC or close window to continue.")
-            run_best_with_ui(best, config)
-        generation += 1
+    
+    old_settings = termios.tcgetattr(sys.stdin)
+    try:
+        tty.setcbreak(sys.stdin.fileno())
+        generation = 0
+        while True:
+            best = pop.run(eval_genomes, 1)
+            print(f"\nGeneration {generation} complete. Best fitness: {best.fitness:.2f}")
+            print("Press 1 to view best genome with UI...")
+            
+            end_time = time.time() + 0.5
+            show_ui = False
+            while time.time() < end_time:
+                key = check_key()
+                if key == '1':
+                    show_ui = True
+                    break
+                time.sleep(0.01)
+            
+            if show_ui:
+                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+                run_best_with_ui(best, config)
+                tty.setcbreak(sys.stdin.fileno())
+            
+            generation += 1
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 if __name__ == "__main__":

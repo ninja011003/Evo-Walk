@@ -154,4 +154,5 @@ def input_vec(human: Human) -> list:
     inputs.extend([clamp(v / MAX_MUSCLE_VEL) for v in all_muscle_vels(human)])
     inputs.append(1.0 if foot_contact(human, 0) else 0.0)
     inputs.append(1.0 if foot_contact(human, 2) else 0.0)
+    # print(len(inputs))
     return inputs
