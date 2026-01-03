@@ -19,7 +19,7 @@ class Actuator:
         dy = p2.y - p1.y
         self.rest_length = (dx * dx + dy * dy) ** 0.5
         self.max_force = 100000.0
-        self.max_stiffness = 5000.0
+        self.max_stiffness = 5000000.0
         self.damping = 100.0
         self.activation = 0.0
         self.target_activation = 0.0
@@ -69,28 +69,15 @@ class Actuator:
 
         dx = p2.x - p1.x
         dy = p2.y - p1.y
-        current_length = (dx * dx + dy * dy) ** 0.5
+        length = (dx * dx + dy * dy) ** 0.5
 
-        if current_length < 1.0:
-            sep_force = 500.0
-            if current_length > 0.001:
-                dir_x = dx / current_length
-                dir_y = dy / current_length
-            else:
-                dir_x = 0.0
-                dir_y = 1.0
-            self.obj1.body.apply_point_force(
-                Vector(-sep_force * dir_x, -sep_force * dir_y), p1
-            )
-            self.obj2.body.apply_point_force(
-                Vector(sep_force * dir_x, sep_force * dir_y), p2
-            )
+        if length < 1e-6:
             return
 
-        dir_x = dx / current_length
-        dir_y = dy / current_length
+        dir_x = dx / length
+        dir_y = dy / length
 
-        stretch = current_length - self.rest_length
+        stretch = length - self.rest_length
 
         local1 = self._get_local_anchor(self.obj1, self.anchor1)
         local2 = self._get_local_anchor(self.obj2, self.anchor2)
@@ -107,46 +94,27 @@ class Actuator:
 
         v1_x = self.obj1.body.velocity.x - self.obj1.body.ang_velocity * r1_y
         v1_y = self.obj1.body.velocity.y + self.obj1.body.ang_velocity * r1_x
-
         v2_x = self.obj2.body.velocity.x - self.obj2.body.ang_velocity * r2_y
         v2_y = self.obj2.body.velocity.y + self.obj2.body.ang_velocity * r2_x
 
-        rel_vel_x = v2_x - v1_x
-        rel_vel_y = v2_y - v1_y
-        rel_vel_along = rel_vel_x * dir_x + rel_vel_y * dir_y
+        rel_vel = (v2_x - v1_x) * dir_x + (v2_y - v1_y) * dir_y
 
-        effective_stiffness = self.activation * self.max_stiffness
-        effective_max_force = self.activation * self.max_force
+        active_force = self.activation * self.max_force
+        passive_force = self.max_stiffness * max(0.0, stretch)
+        damping_force = -self.damping * rel_vel
 
-        force_magnitude = (
-            effective_stiffness * stretch - self.damping * rel_vel_along
-        )
+        force_mag = active_force + passive_force + damping_force
+        if force_mag < 0.0:
+            force_mag = 0.0
+        if force_mag > self.max_force:
+            force_mag = self.max_force
 
-        if force_magnitude < 0:
-            force_magnitude = 0
+        fx = force_mag * dir_x
+        fy = force_mag * dir_y
 
-        force_magnitude = min(force_magnitude, effective_max_force)
+        self.obj1.body.apply_point_force(Vector(fx, fy), p1)
+        self.obj2.body.apply_point_force(Vector(-fx, -fy), p2)
 
-        force_x = force_magnitude * dir_x
-        force_y = force_magnitude * dir_y
-
-        inv_mass1 = self.obj1.body.inv_mass
-        inv_mass2 = self.obj2.body.inv_mass
-        total_inv_mass = inv_mass1 + inv_mass2
-
-        if total_inv_mass > 0:
-            w1 = inv_mass1 / total_inv_mass
-            w2 = inv_mass2 / total_inv_mass
-        else:
-            w1 = 0.5
-            w2 = 0.5
-
-        self.obj1.body.apply_point_force(
-            Vector(force_x * w1 * 2, force_y * w1 * 2), p1
-        )
-        self.obj2.body.apply_point_force(
-            Vector(-force_x * w2 * 2, -force_y * w2 * 2), p2
-        )
 
     def contains(self, x, y):
         x1, y1 = self.get_endpoint1()

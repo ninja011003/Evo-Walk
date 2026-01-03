@@ -10,7 +10,7 @@ from human import Human
 from neural_inputs import input_vec
 import math
 
-SIMULATION_STEPS = 500
+SIMULATION_STEPS = 100
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
 NORMAL_TORSO_BALANCE = 500.0
 
@@ -27,9 +27,8 @@ def eval_genome(genome, config):
     torso = human.engine.boxes[1]
     prev_x = torso.body.position.x
 
-    forward_reward = 0.0
+    fitness = 0.0
     effort_penalty = 0.0
-    penalty = 0.0
 
     for _ in range(SIMULATION_STEPS):
         inputs = input_vec(human)
@@ -39,16 +38,25 @@ def eval_genome(genome, config):
         human.set_activations(activations)
         human.step()
 
+        y = torso.body.position.y
+        if y < 550.0:
+            fitness += 500.0
+            
+
+        height_error = abs(y - NORMAL_TORSO_BALANCE)
+        fitness += max(0.0, 1.0 - height_error / 100.0)
+
         curr_x = torso.body.position.x
-        forward_reward += curr_x - prev_x
+        dx = curr_x - prev_x
         prev_x = curr_x
 
-        if torso.body.position.y > 550.0:
-            penalty -= 50
+        if height_error < 40.0:
+            fitness += dx
 
         effort_penalty += sum(abs(a) for a in activations)
 
-    return forward_reward - 0.01 * effort_penalty + penalty
+    return fitness - 0.01 * effort_penalty
+
 
 
 
