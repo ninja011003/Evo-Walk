@@ -6,12 +6,14 @@ import tty
 import termios
 import time
 import pygame
+import pickle
 from human import Human
 from neural_inputs import input_vec
 import math
 
 SIMULATION_STEPS = 100
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
+CHECKPOINT_PATH = os.path.join(os.path.dirname(__file__), "best_genome.pkl")
 NORMAL_TORSO_BALANCE = 500.0
 
 def check_key():
@@ -40,7 +42,7 @@ def eval_genome(genome, config):
 
         y = torso.body.position.y
         if y < 550.0:
-            fitness += 500.0
+            fitness += 50.0
             
 
         height_error = abs(y - NORMAL_TORSO_BALANCE)
@@ -50,9 +52,25 @@ def eval_genome(genome, config):
         dx = curr_x - prev_x
         prev_x = curr_x
 
-        if height_error < 40.0:
-            fitness += dx
+        if height_error < 100.0:
+            fitness += dx*10
 
+        left_leg = human.engine.boxes[0]
+        right_leg = human.engine.boxes[2]
+        left_orientation = abs(left_leg.body.orientation) % math.pi
+        right_orientation = abs(right_leg.body.orientation) % math.pi
+        
+        straight_threshold = 0.3
+        if left_orientation < straight_threshold and right_orientation < straight_threshold:
+            fitness += 25.0
+        
+        flat_threshold = math.pi / 2
+        if abs(left_orientation - flat_threshold) < 0.3:
+            fitness -= 15.0
+        if abs(right_orientation - flat_threshold) < 0.3:
+            fitness -= 15.0
+        if dx< 10.0:
+            fitness-=100.0 #penalty for standing still / going backward
         effort_penalty += sum(abs(a) for a in activations)
 
     return fitness - 0.01 * effort_penalty
@@ -108,7 +126,7 @@ def run_best_with_ui(genome, config):
     pygame.display.quit()
 
 
-def run():
+def run(start_fresh=True):
     config = neat.Config(
         neat.DefaultGenome,
         neat.DefaultReproduction,
@@ -116,15 +134,25 @@ def run():
         neat.DefaultStagnation,
         CONFIG_PATH,
     )
-    pop = neat.Population(config)
+    
+    if start_fresh or not os.path.exists(CHECKPOINT_PATH):
+        pop = neat.Population(config)
+        generation = 0
+    else:
+        with open(CHECKPOINT_PATH, "rb") as f:
+            checkpoint = pickle.load(f)
+        pop = checkpoint["population"]
+        generation = checkpoint["generation"]
+        print(f"Resuming from generation {generation}")
+    
     pop.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     pop.add_reporter(stats)
     
+    best = None
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
-        generation = 0
         while True:
             best = pop.run(eval_genomes, 1)
             print(f"\nGeneration {generation} complete. Best fitness: {best.fitness:.2f}")
@@ -145,10 +173,16 @@ def run():
                 tty.setcbreak(sys.stdin.fileno())
             
             generation += 1
+    except KeyboardInterrupt:
+        print("\nSaving checkpoint...")
+        with open(CHECKPOINT_PATH, "wb") as f:
+            pickle.dump({"population": pop, "generation": generation}, f)
+        print(f"Checkpoint saved to {CHECKPOINT_PATH}")
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 if __name__ == "__main__":
-    run()
+    start_fresh = "--continue" not in sys.argv
+    run(start_fresh=start_fresh)
 
