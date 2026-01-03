@@ -89,6 +89,7 @@ class Collision_Handler:
         position_correction_percent=0.4,
         slop=0.01,
         resting_threshold=0.9,
+        iterations=4,
     ):
         self.bodies = (
             bodies if bodies is not None else []
@@ -96,6 +97,12 @@ class Collision_Handler:
         self.position_correction_percent = position_correction_percent
         self.slop = slop
         self.resting_threshold = resting_threshold
+        self.iterations = iterations
+        self.ground = None  # Ground body reference for special handling
+
+    def set_ground(self, ground_body: Body):
+        
+        self.ground = ground_body
 
     def add_body(self, body: Body):
         self.bodies.append(body)
@@ -104,21 +111,87 @@ class Collision_Handler:
         if body in self.bodies:
             self.bodies.remove(body)
 
+    def detect_ground_collision(self, body: Body):
+        if self.ground is None:
+            return None
+        
+        ground = self.ground
+        ground_top = ground.position.y - ground.height / 2
+        ground_left = ground.position.x - ground.width / 2
+        ground_right = ground.position.x + ground.width / 2
+        
+        if body.shape == "circle":
+            body_bottom = body.position.y + body.radius
+            contact_x = body.position.x
+            
+            if contact_x < ground_left or contact_x > ground_right:
+                return None
+            
+            penetration = body_bottom - ground_top
+            if penetration <= 0:
+                return None
+            
+            n = Vector(0, 1)
+            contact_pt = Vector(contact_x, ground_top)
+            return n, penetration, contact_pt
+            
+        elif body.shape == "rectangle":
+            corners = get_rectangle_corners(body)
+            
+            contact_corners = []
+            max_penetration = 0
+            
+            for corner in corners:
+                if corner.x < ground_left or corner.x > ground_right:
+                    continue
+                pen = corner.y - ground_top
+                if pen > 0:
+                    contact_corners.append(corner)
+                    max_penetration = max(max_penetration, pen)
+            
+            if not contact_corners:
+                return None
+            
+            avg_x = sum(c.x for c in contact_corners) / len(contact_corners)
+            
+            n = Vector(0, 1)
+            contact_pt = Vector(avg_x, ground_top)
+            return n, max_penetration, contact_pt
+        
+        return None
+
     def update(self):
-        collisions = []
-        for i in range(len(self.bodies)):
-            for j in range(i + 1, len(self.bodies)):
-                b1 = self.bodies[i]
-                b2 = self.bodies[j]
-                result = self.detect_collision(b1, b2)
-                if result is not None:
-                    n, penetration, contact_point = result
-                    collisions.append((b1, b2, n, penetration, contact_point))
+        for _ in range(self.iterations):
+            collisions = []
+            for i in range(len(self.bodies)):
+                for j in range(i + 1, len(self.bodies)):
+                    b1 = self.bodies[i]
+                    b2 = self.bodies[j]
+                    
+                    
+                    if self.ground is not None and b2 == self.ground:
+                        result = self.detect_ground_collision(b1)
+                        if result is not None:
+                            n, penetration, contact_point = result
+                            collisions.append((b1, b2, n, penetration, contact_point))
+                    elif self.ground is not None and b1 == self.ground:
+                        result = self.detect_ground_collision(b2)
+                        if result is not None:
+                            n, penetration, contact_point = result
+                            collisions.append((b2, b1, n, penetration, contact_point))
+                    else:
+                        result = self.detect_collision(b1, b2)
+                        if result is not None:
+                            n, penetration, contact_point = result
+                            collisions.append((b1, b2, n, penetration, contact_point))
 
-        collisions.sort(key=lambda c: c[3], reverse=True)
+            if not collisions:
+                break  
 
-        for b1, b2, n, penetration, contact_point in collisions:
-            self.resolve_collision(b1, b2, n, penetration, contact_point)
+            collisions.sort(key=lambda c: c[3], reverse=True)
+
+            for b1, b2, n, penetration, contact_point in collisions:
+                self.resolve_collision(b1, b2, n, penetration, contact_point)
 
     def detect_collision(self, b1: Body, b2: Body):
         p1, p2 = b1.position, b2.position
@@ -306,6 +379,8 @@ class Collision_Handler:
         penetration: float,
         contact_point: Vector,
     ):
+        self.apply_pos_corr(b1, b2, n, penetration)
+        
         rel_vel = self.compute_relative_velocity(b1, b2, contact_point)
         vel_along_normal = rel_vel.x * n.x + rel_vel.y * n.y
 
@@ -313,17 +388,15 @@ class Collision_Handler:
             n = Vector(-n.x, -n.y)
             vel_along_normal = -vel_along_normal
 
-        if vel_along_normal >= -1e-6:
-            return
-
-        self.apply_pos_corr(b1, b2, n, penetration)
-        self.apply_impulse(b1, b2, n, contact_point)
+        self.apply_impulse(b1, b2, n, contact_point, vel_along_normal)
 
     def apply_pos_corr(self, b1: Body, b2: Body, n: Vector, penetration: float):
         total_inv_mass = b1.inv_mass + b2.inv_mass
         if total_inv_mass == 0:
             return
 
+        penetration = min(penetration, 100)
+        
         correction_magnitude = (
             max(penetration - self.slop, 0)
             * self.position_correction_percent
@@ -340,7 +413,7 @@ class Collision_Handler:
         b2.position.y += correction.y * b2.inv_mass
 
     def apply_impulse(
-        self, b1: Body, b2: Body, n: Vector, contact_point: Vector
+        self, b1: Body, b2: Body, n: Vector, contact_point: Vector, vel_along_normal: float
     ):
         friction = math.sqrt(b1.friction * b2.friction)
 
@@ -364,8 +437,6 @@ class Collision_Handler:
             v2_at_contact.x - v1_at_contact.x, v2_at_contact.y - v1_at_contact.y
         )
 
-        vel_along_normal = rel_vel.x * n.x + rel_vel.y * n.y
-
         if abs(vel_along_normal) < self.resting_threshold:
             restitution = 0.0
         else:
@@ -385,9 +456,7 @@ class Collision_Handler:
             return
 
         j = -(1 + restitution) * vel_along_normal / inv_mass_sum
-
-        if j < 0:
-            return
+        j = max(j, 0)
 
         impulse = Vector(n.x * j, n.y * j)
 
@@ -429,7 +498,7 @@ class Collision_Handler:
 
         jt = -vel_along_tangent / inv_mass_sum_tangent
 
-        max_friction = j * friction
+        max_friction = max(j, 0.5) * friction
         if jt > max_friction:
             jt = max_friction
         elif jt < -max_friction:

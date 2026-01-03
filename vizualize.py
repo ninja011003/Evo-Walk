@@ -1450,6 +1450,8 @@ class SimulationUI:
         for box in self.engine.boxes:
             cx = box.body.position.x - cam
             cy = box.body.position.y
+            if cx != cx or cy != cy:
+                continue
             angle = box.body.orientation
             hw = box.width / 2
             hh = box.height / 2
@@ -1511,6 +1513,8 @@ class SimulationUI:
                 handles = box.get_world_resize_handles()
                 active_handle = box.get_resize_handle_at(mx + cam, my)
                 for name, (hx, hy) in handles.items():
+                    if hx != hx or hy != hy:
+                        continue
                     hx_i, hy_i = int(hx) - cam, int(hy)
                     if name == active_handle or (
                         self.resizing_box == box and self.resize_handle == name

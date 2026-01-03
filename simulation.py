@@ -673,6 +673,7 @@ class SimulationEngine:
         self.ground = self.create_box(
             width / 2, height - 20, 10000000000000000000, 40, pinned=True
         )
+        self.collision_handler.set_ground(self.ground.body)
 
     def create_bob(self, x, y, pinned=False):
         bob = Bob(x, y, pinned)
@@ -822,6 +823,7 @@ class SimulationEngine:
         self.ground = self.create_box(
             self.width / 2, self.height - 20, 100000, 40, pinned=True
         )
+        self.collision_handler.set_ground(self.ground.body)
 
     def update(self, dt):
         if not self.running:
