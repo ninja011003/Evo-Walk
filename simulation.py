@@ -6,6 +6,7 @@ from engine.templates.body import Body
 from engine.templates.contraint import Contraint
 from engine.templates.collision_handler import Collision_Handler
 from engine.templates.actuator import Actuator
+from engine.templates.joint import Joint
 
 TEMPLATES_FILE = os.path.join(os.path.dirname(__file__), "templates.json")
 
@@ -344,6 +345,86 @@ class Box:
             self.body.apply_force(Vector(0, float(value)))
 
 
+JOINT_RADIUS = 8
+
+
+class JointWrapper:
+    _id_counter = 0
+
+    def __init__(self, x, y, radius=JOINT_RADIUS):
+        JointWrapper._id_counter += 1
+        self.id = JointWrapper._id_counter
+        self.radius = radius
+        self.joint = Joint(
+            mass=0.5,
+            position=Vector(x, y),
+            radius=self.radius,
+            orientation=0.0,
+        )
+        self.name = f"Joint_{self.id}"
+        self.connected_bodies = []
+
+    def contains(self, x, y):
+        dx = x - self.joint.position.x
+        dy = y - self.joint.position.y
+        return (dx * dx + dy * dy) <= (self.radius + 8) ** 2
+
+    def connect(self, body, body_anchor=None):
+        if isinstance(body, Box):
+            if body_anchor is None:
+                body_anchor = "center"
+            local_anchor = body.get_local_anchors()[body_anchor]
+        elif isinstance(body, Bob):
+            local_anchor = Vector(0, 0)
+        else:
+            local_anchor = Vector(0, 0)
+        
+        constraint = self.joint.connect(body.body, local_anchor, Vector(0, 0))
+        self.connected_bodies.append((body, body_anchor, constraint))
+        return constraint
+
+    def solve_constraints(self, iterations=4):
+        self.joint.solve_constraints(iterations)
+
+    def integrate(self, dt):
+        self.joint.integrate(dt)
+
+    def apply_force(self, force):
+        self.joint.apply_force(force)
+
+    def get_debug_info(self):
+        return {
+            "type": "Joint",
+            "id": self.id,
+            "name": self.name,
+            "position.x": round(self.joint.position.x, 2),
+            "position.y": round(self.joint.position.y, 2),
+            "velocity.x": round(self.joint.velocity.x, 2),
+            "velocity.y": round(self.joint.velocity.y, 2),
+            "mass": self.joint.mass,
+            "radius": self.radius,
+            "orientation": round(self.joint.orientation, 2),
+            "ang_velocity": round(self.joint.ang_velocity, 2),
+            "connections": len(self.connected_bodies),
+        }
+
+    def set_property(self, key, value):
+        if key == "position.x":
+            self.joint.position.x = float(value)
+        elif key == "position.y":
+            self.joint.position.y = float(value)
+        elif key == "velocity.x":
+            self.joint.velocity.x = float(value)
+        elif key == "velocity.y":
+            self.joint.velocity.y = float(value)
+        elif key == "mass":
+            self.joint.mass = float(value)
+            self.joint.inv_mass = 1 / self.joint.mass if self.joint.mass > 0 else 0
+        elif key == "radius":
+            self.radius = max(3, int(value))
+            self.joint.radius = self.radius
+
+
 class PointConstraint:
     def __init__(self, box, anchor_name, bob):
         self.box = box
@@ -665,10 +746,12 @@ class SimulationEngine:
         self.boxes = []
         self.rods = []
         self.actuators = []
+        self.joints = []
         self.running = False
         self.iterations = 8
         self.dragging_bob = None
         self.dragging_box = None
+        self.dragging_joint = None
         self.collision_handler = Collision_Handler()
         self.ground = self.create_box(
             width / 2, height - 20, 10000000000000000000, 40, pinned=True
@@ -730,6 +813,24 @@ class SimulationEngine:
         self.actuators.append(actuator)
         return actuator
 
+    def create_joint(self, x, y):
+        joint = JointWrapper(x, y)
+        self.joints.append(joint)
+        return joint
+
+    def get_joint_at(self, x, y):
+        for joint in reversed(self.joints):
+            if joint.contains(x, y):
+                return joint
+        return None
+
+    def delete_joint(self, joint):
+        if joint in self.joints:
+            self.joints.remove(joint)
+
+    def connect_to_joint(self, joint, body, anchor=None):
+        joint.connect(body, anchor)
+
     def get_actuator_at(self, x, y):
         for actuator in reversed(self.actuators):
             if actuator.contains(x, y):
@@ -775,17 +876,27 @@ class SimulationEngine:
             self.dragging_bob = obj
         elif isinstance(obj, Box):
             self.dragging_box = obj
+        elif isinstance(obj, JointWrapper):
+            self.dragging_joint = obj
 
     def release(self):
         self.dragging_bob = None
         self.dragging_box = None
+        self.dragging_joint = None
 
     def move(self, obj, x, y):
-        obj.body.position.x = x
-        obj.body.position.y = y
-        if self.running:
-            obj.body.velocity = Vector(0, 0)
-            obj.body.ang_velocity = 0.0
+        if isinstance(obj, JointWrapper):
+            obj.joint.position.x = x
+            obj.joint.position.y = y
+            if self.running:
+                obj.joint.velocity = Vector(0, 0)
+                obj.joint.ang_velocity = 0.0
+        else:
+            obj.body.position.x = x
+            obj.body.position.y = y
+            if self.running:
+                obj.body.velocity = Vector(0, 0)
+                obj.body.ang_velocity = 0.0
 
     def clear_forces(self):
         for bob in self.bobs:
@@ -812,14 +923,17 @@ class SimulationEngine:
         self.boxes = []
         self.rods = []
         self.actuators = []
+        self.joints = []
         self.running = False
         self.dragging_bob = None
         self.dragging_box = None
+        self.dragging_joint = None
         self.collision_handler = Collision_Handler()
         Bob._id_counter = 0
         Box._id_counter = 0
         Rod._id_counter = 0
         Actuator._id_counter = 0
+        JointWrapper._id_counter = 0
         self.ground = self.create_box(
             self.width / 2, self.height - 20, 100000, 40, pinned=True
         )
@@ -847,6 +961,14 @@ class SimulationEngine:
                     box.body.position,
                 )
 
+        for joint in self.joints:
+            if joint != self.dragging_joint:
+                joint.apply_force(
+                    Vector(
+                        GRAVITY.x * joint.joint.mass, GRAVITY.y * joint.joint.mass
+                    )
+                )
+
         for actuator in self.actuators:
             actuator.apply_forces(dt)
 
@@ -858,9 +980,15 @@ class SimulationEngine:
             if box != self.dragging_box:
                 box.body.integrate(dt)
 
+        for joint in self.joints:
+            if joint != self.dragging_joint:
+                joint.integrate(dt)
+
         for _ in range(self.iterations):
             for rod in self.rods:
                 rod.solve()
+            for joint in self.joints:
+                joint.solve_constraints(1)
 
         self.collision_handler.update()
 
@@ -896,6 +1024,7 @@ class SimulationEngine:
             "bob_count": len(self.bobs),
             "box_count": len(self.boxes),
             "rod_count": len(self.rods),
+            "joint_count": len(self.joints),
             "iterations": self.iterations,
             "gravity.x": GRAVITY.x,
             "gravity.y": GRAVITY.y,
@@ -991,11 +1120,37 @@ class SimulationEngine:
                     }
                 )
 
+        joints_data = []
+        for joint in self.joints:
+            connections = []
+            for body, anchor, constraint in joint.connected_bodies:
+                if body in bob_map:
+                    connections.append({
+                        "body_type": "bob",
+                        "body_idx": bob_map[body],
+                        "anchor": anchor,
+                    })
+                elif body in box_map:
+                    connections.append({
+                        "body_type": "box",
+                        "body_idx": box_map[body],
+                        "anchor": anchor,
+                    })
+            joints_data.append({
+                "x": joint.joint.position.x,
+                "y": joint.joint.position.y,
+                "radius": joint.radius,
+                "mass": joint.joint.mass,
+                "orientation": joint.joint.orientation,
+                "connections": connections,
+            })
+
         return {
             "bobs": bobs_data,
             "boxes": boxes_data,
             "rods": rods_data,
             "actuators": actuators_data,
+            "joints": joints_data,
         }
 
     def load_template(self, data, offset_x=0, offset_y=0):
@@ -1084,6 +1239,31 @@ class SimulationEngine:
                         actuator.max_stiffness = actuator_data["max_stiffness"]
                     if "damping" in actuator_data:
                         actuator.damping = actuator_data["damping"]
+
+        for joint_data in data.get("joints", []):
+            joint = self.create_joint(
+                joint_data["x"] + offset_x,
+                joint_data["y"] + offset_y,
+            )
+            if "radius" in joint_data:
+                joint.radius = joint_data["radius"]
+                joint.joint.radius = joint_data["radius"]
+            if "mass" in joint_data:
+                joint.joint.mass = joint_data["mass"]
+                joint.joint.inv_mass = 1 / joint.joint.mass if joint.joint.mass > 0 else 0
+            if "orientation" in joint_data:
+                joint.joint.orientation = joint_data["orientation"]
+            for conn in joint_data.get("connections", []):
+                body_type = conn.get("body_type", "bob")
+                body_idx = conn.get("body_idx", -1)
+                anchor = conn.get("anchor")
+                body = (
+                    bob_map.get(body_idx)
+                    if body_type == "bob"
+                    else box_map.get(body_idx)
+                )
+                if body:
+                    joint.connect(body, anchor)
 
 
 def load_templates():

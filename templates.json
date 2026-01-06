@@ -1900,5 +1900,223 @@
         "damping": 100.0
       }
     ]
+  },
+  "v6": {
+    "bobs": [],
+    "boxes": [
+      {
+        "x": 356.1347863014511,
+        "y": 384.97063843834775,
+        "width": 10,
+        "height": 86.0,
+        "pinned": false,
+        "orientation": 0.6143282372441984
+      },
+      {
+        "x": 339.12613643982735,
+        "y": 462.7887151285507,
+        "width": 10,
+        "height": 80,
+        "pinned": false,
+        "orientation": -0.11582462462882795
+      },
+      {
+        "x": 406.3457316270846,
+        "y": 387.15642963754885,
+        "width": 10,
+        "height": 80,
+        "pinned": false,
+        "orientation": -0.5183925869476418
+      },
+      {
+        "x": 427.1531023418177,
+        "y": 463.0950470790697,
+        "width": 10,
+        "height": 80,
+        "pinned": false,
+        "orientation": -0.07385169631792374
+      },
+      {
+        "x": 380.5294949896552,
+        "y": 273.0491393199962,
+        "width": 10,
+        "height": 154.0,
+        "pinned": false,
+        "orientation": -0.06459890910961626
+      },
+      {
+        "x": 405.578334115675,
+        "y": 201.6781265423276,
+        "width": 10,
+        "height": 55.0,
+        "pinned": false,
+        "orientation": -1.4104616630963753
+      },
+      {
+        "x": 456.8123604354358,
+        "y": 218.4236152475446,
+        "width": 10,
+        "height": 55.0,
+        "pinned": false,
+        "orientation": -1.1429452658008943
+      },
+      {
+        "x": 346.9305590524607,
+        "y": 210.29813639019278,
+        "width": 10,
+        "height": 55.0,
+        "pinned": false,
+        "orientation": 1.158150283801053
+      },
+      {
+        "x": 298.2965636819129,
+        "y": 232.71774920346778,
+        "width": 10,
+        "height": 55.0,
+        "pinned": false,
+        "orientation": 1.1041595359058154
+      },
+      {
+        "x": 366.66742312664695,
+        "y": 178.6737606607774,
+        "width": 34.0,
+        "height": 34.0,
+        "pinned": false,
+        "orientation": -0.40228115963288563
+      }
+    ],
+    "rods": [],
+    "actuators": [],
+    "joints": [
+      {
+        "x": 323.71322390313594,
+        "y": 219.972732924594,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 7,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 8,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 334.31999715070776,
+        "y": 422.06288005947556,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 0,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 1,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 424.1500490290091,
+        "y": 421.8358857204795,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 2,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 3,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 384.3485162271634,
+        "y": 351.86712684046006,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 4,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 0,
+            "anchor": "top"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 2,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 430.73426121010635,
+        "y": 206.47586261668744,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 5,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 6,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 374.4359840320048,
+        "y": 196.98408124701092,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 4,
+            "anchor": "top"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 5,
+            "anchor": "top"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 7,
+            "anchor": "top"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 9,
+            "anchor": "bottom"
+          }
+        ]
+      }
+    ]
   }
 }
