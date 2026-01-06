@@ -31,9 +31,19 @@ def eval_genome(genome, config):
 
     fitness = 0.0
     effort_penalty = 0.0
+    stagnant_steps = 0
 
     for _ in range(SIMULATION_STEPS):
         inputs = input_vec(human)
+        left_foot = inputs[-2]
+        right_foot = inputs[-1]
+        
+        if left_foot>0.0 and right_foot>0.0:
+            fitness+=10000.0
+        elif left_foot>0.0 or right_foot>0.0:
+            fitness+=10
+        else:
+            fitness-=100
         outputs = net.activate(inputs)
 
         activations = [max(0.0, min(1.0, o)) for o in outputs]
@@ -41,39 +51,29 @@ def eval_genome(genome, config):
         human.step()
 
         y = torso.body.position.y
-        if y < 550.0:
-            fitness += 50.0
-            
-
         height_error = abs(y - NORMAL_TORSO_BALANCE)
-        fitness += max(0.0, 1.0 - height_error / 100.0)
 
         curr_x = torso.body.position.x
         dx = curr_x - prev_x
         prev_x = curr_x
 
-        if height_error < 100.0:
-            fitness += dx*10
+        fitness += dx * 10.0
 
-        left_leg = human.engine.boxes[0]
-        right_leg = human.engine.boxes[2]
-        left_orientation = abs(left_leg.body.orientation) % math.pi
-        right_orientation = abs(right_leg.body.orientation) % math.pi
-        
-        straight_threshold = 0.3
-        if left_orientation < straight_threshold and right_orientation < straight_threshold:
-            fitness += 25.0
-        
-        flat_threshold = math.pi / 2
-        if abs(left_orientation - flat_threshold) < 0.3:
-            fitness -= 15.0
-        if abs(right_orientation - flat_threshold) < 0.3:
-            fitness -= 15.0
-        if dx< 10.0:
-            fitness-=100.0 #penalty for standing still / going backward
+        if height_error > 150.0:
+            fitness -= 5.0
+
+        if dx < 0.1:
+            stagnant_steps += 1
+        else:
+            stagnant_steps = 0
+
+        if stagnant_steps > 20:
+            fitness -= 50.0
+
         effort_penalty += sum(abs(a) for a in activations)
 
     return fitness - 0.01 * effort_penalty
+
 
 
 
