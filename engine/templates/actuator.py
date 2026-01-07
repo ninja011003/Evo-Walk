@@ -1,7 +1,9 @@
 import math
 from engine.templates.vector import Vector
 
-
+"""
+NOTE: This class is a WIP 
+"""
 class Actuator:
     _id_counter = 0
 

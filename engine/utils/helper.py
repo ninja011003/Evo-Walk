@@ -1,5 +1,6 @@
 from engine.templates.vector import Vector
 
+import math
 
 def mul(v1: Vector, v2: Vector) -> Vector:
     return Vector(v1.x * v2.x, v1.y * v2.y)
@@ -29,3 +30,18 @@ def compute_moi(**kwargs):
             * (kwargs.get("width") ** 2 + kwargs.get("height") ** 2)
         )  # I = 1/12 * m * (w^2 + h^2)
     return 0
+
+def clamp(val,min,max):
+    if val < min:
+        return min
+    if val > max:
+        return max
+    else:
+        return val
+    
+def normalize_angle(angle):
+    while angle > math.pi:
+        angle -= 2 * math.pi
+    while angle <= -math.pi:
+        angle += 2 * math.pi
+    return angle
