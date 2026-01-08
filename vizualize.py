@@ -11,6 +11,7 @@ from simulation import (
     save_template,
     delete_template,
     JointWrapper,
+    MotorWrapper,
     Box,
 )
 
@@ -33,6 +34,8 @@ ROD_COLOR = (100, 181, 246)
 JOINT_COLOR = (0, 200, 150)
 JOINT_HOVER = (50, 230, 180)
 ACTUATOR_COLOR = (255, 140, 0)
+MOTOR_COLOR = (255, 80, 180)
+MOTOR_HOVER = (255, 120, 200)
 FORCE_COLOR = (255, 193, 7)
 BTN_COLOR = (45, 45, 60)
 BTN_HOVER = (65, 65, 85)
@@ -271,6 +274,7 @@ class DebugPanel:
         "box_count",
         "rod_count",
         "joint_count",
+        "motor_count",
         "connections",
         "moi",
         "torque",
@@ -282,20 +286,68 @@ class DebugPanel:
         "dt",
         "bob1",
         "bob2",
+        "joint",
+        "body1",
+        "body2",
+        "rel_angle",
+    }
+
+    CATEGORY_COLORS = {
+        "Bobs": BOB_COLOR,
+        "Boxes": BOX_COLOR,
+        "Rods": ROD_COLOR,
+        "Actuators": ACTUATOR_COLOR,
+        "Joints": JOINT_COLOR,
+        "Motors": MOTOR_COLOR,
     }
 
     def __init__(self, x, y, width, height):
         self.rect = pygame.Rect(x, y, width, height)
+        self.engine = None
         self.selected_object = None
         self.visible = True
         self.scroll_y = 0
+        self.list_scroll_y = 0
         self.input_fields = []
         self.active_field = None
+        self.component_list = []
+        self.hovered_item = None
+        self.collapsed_categories = set()
+
+    def set_engine(self, engine):
+        self.engine = engine
 
     def set_selected(self, obj):
         self.selected_object = obj
         self.scroll_y = 0
         self._rebuild_fields()
+
+    def go_back_to_list(self):
+        self.selected_object = None
+        self.scroll_y = 0
+        self.input_fields = []
+        self.active_field = None
+
+    def _rebuild_component_list(self):
+        self.component_list = []
+        if not self.engine:
+            return
+
+        categories = [
+            ("Bobs", [b for b in self.engine.bobs]),
+            ("Boxes", [b for b in self.engine.boxes if b != self.engine.ground]),
+            ("Rods", self.engine.rods),
+            ("Actuators", self.engine.actuators),
+            ("Joints", self.engine.joints),
+            ("Motors", self.engine.motors),
+        ]
+
+        for cat_name, items in categories:
+            if items:
+                self.component_list.append({"type": "category", "name": cat_name, "count": len(items)})
+                if cat_name not in self.collapsed_categories:
+                    for item in items:
+                        self.component_list.append({"type": "item", "category": cat_name, "obj": item})
 
     def _rebuild_fields(self):
         self.input_fields = []
@@ -354,6 +406,56 @@ class DebugPanel:
                         field._apply_value()
                         field.active = False
                 return False
+
+            rel_x = event.pos[0] - self.rect.x
+            rel_y = event.pos[1] - self.rect.y
+
+            if self.selected_object is not None:
+                back_btn_rect = pygame.Rect(15, 58, 60, 26)
+                if back_btn_rect.collidepoint(rel_x, rel_y):
+                    self.go_back_to_list()
+                    return True
+            else:
+                self._rebuild_component_list()
+                y_offset = 55 - self.list_scroll_y
+                for entry in self.component_list:
+                    item_height = 32 if entry["type"] == "category" else 28
+                    item_rect = pygame.Rect(10, y_offset, self.rect.width - 20, item_height)
+                    if item_rect.collidepoint(rel_x, rel_y + self.list_scroll_y):
+                        if entry["type"] == "category":
+                            cat_name = entry["name"]
+                            if cat_name in self.collapsed_categories:
+                                self.collapsed_categories.remove(cat_name)
+                            else:
+                                self.collapsed_categories.add(cat_name)
+                            return True
+                        else:
+                            self.set_selected(entry["obj"])
+                            return True
+                    y_offset += item_height + 2
+
+        if event.type == pygame.MOUSEWHEEL and self.rect.collidepoint(pygame.mouse.get_pos()):
+            if self.selected_object is None:
+                self._rebuild_component_list()
+                total_height = sum(34 if e["type"] == "category" else 30 for e in self.component_list)
+                max_scroll = max(0, total_height - (self.rect.height - 80))
+                self.list_scroll_y = max(0, min(max_scroll, self.list_scroll_y - event.y * 20))
+                return True
+
+        if event.type == pygame.MOUSEMOTION:
+            if self.rect.collidepoint(event.pos) and self.selected_object is None:
+                rel_x = event.pos[0] - self.rect.x
+                rel_y = event.pos[1] - self.rect.y
+                self._rebuild_component_list()
+                self.hovered_item = None
+                y_offset = 55 - self.list_scroll_y
+                for entry in self.component_list:
+                    item_height = 32 if entry["type"] == "category" else 28
+                    item_rect = pygame.Rect(10, y_offset, self.rect.width - 20, item_height)
+                    if item_rect.collidepoint(rel_x, rel_y + self.list_scroll_y):
+                        self.hovered_item = entry
+                        break
+                    y_offset += item_height + 2
 
         if hasattr(event, "pos"):
             rel_pos = (event.pos[0] - self.rect.x, event.pos[1] - self.rect.y)
@@ -430,30 +532,78 @@ class DebugPanel:
         panel_surface.blit(title, (38, 15))
 
         if self.selected_object is None:
-            hint = font_debug.render("Click a Bob or Rod", True, DEBUG_LABEL)
-            panel_surface.blit(hint, (15, 75))
-            hint2 = font_debug.render(
-                "to inspect its values", True, DEBUG_LABEL
-            )
-            panel_surface.blit(hint2, (15, 100))
+            self._rebuild_component_list()
 
-            pygame.draw.rect(
-                panel_surface,
-                (35, 35, 50),
-                (15, 135, self.rect.width - 30, 70),
-                border_radius=6,
+            content_surface = pygame.Surface(
+                (self.rect.width, self.rect.height - 55), pygame.SRCALPHA
             )
-            icon_text = font_debug.render(
-                "Select an object", True, (80, 80, 100)
-            )
-            panel_surface.blit(icon_text, (25, 162))
+
+            y_offset = 0 - self.list_scroll_y
+            for entry in self.component_list:
+                if entry["type"] == "category":
+                    cat_name = entry["name"]
+                    cat_color = self.CATEGORY_COLORS.get(cat_name, DEBUG_LABEL)
+                    collapsed = cat_name in self.collapsed_categories
+                    arrow = ">" if collapsed else "v"
+
+                    is_hovered = self.hovered_item == entry
+                    bg_color = (45, 45, 60) if is_hovered else (35, 35, 50)
+
+                    if 0 <= y_offset < self.rect.height - 55:
+                        item_rect = pygame.Rect(10, y_offset, self.rect.width - 20, 32)
+                        pygame.draw.rect(content_surface, bg_color, item_rect, border_radius=6)
+
+                        arrow_text = font_debug.render(arrow, True, cat_color)
+                        content_surface.blit(arrow_text, (18, y_offset + 8))
+
+                        cat_text = font_debug_title.render(f"{cat_name}", True, cat_color)
+                        content_surface.blit(cat_text, (35, y_offset + 7))
+
+                        count_text = font_debug_label.render(f"({entry['count']})", True, DEBUG_LABEL)
+                        content_surface.blit(count_text, (35 + cat_text.get_width() + 8, y_offset + 10))
+
+                    y_offset += 34
+                else:
+                    obj = entry["obj"]
+                    cat_name = entry["category"]
+                    cat_color = self.CATEGORY_COLORS.get(cat_name, DEBUG_LABEL)
+
+                    is_hovered = self.hovered_item == entry
+                    bg_color = (50, 55, 70) if is_hovered else (38, 38, 52)
+
+                    if 0 <= y_offset < self.rect.height - 55:
+                        item_rect = pygame.Rect(25, y_offset, self.rect.width - 35, 28)
+                        pygame.draw.rect(content_surface, bg_color, item_rect, border_radius=4)
+                        pygame.draw.rect(content_surface, (55, 55, 75), item_rect, 1, border_radius=4)
+
+                        pygame.draw.circle(content_surface, cat_color, (35, y_offset + 14), 4)
+
+                        obj_name = obj.name if hasattr(obj, "name") else f"{cat_name[:-1]}_{id(obj)}"
+                        name_text = font_debug.render(obj_name[:22], True, DEBUG_VALUE)
+                        content_surface.blit(name_text, (48, y_offset + 6))
+
+                    y_offset += 30
+
+            panel_surface.blit(content_surface, (0, 55))
+
+            if not self.component_list:
+                hint = font_debug.render("No components yet", True, DEBUG_LABEL)
+                panel_surface.blit(hint, (15, 75))
+                hint2 = font_debug.render("Add bobs, boxes, etc.", True, DEBUG_LABEL)
+                panel_surface.blit(hint2, (15, 100))
         else:
             if hasattr(self.selected_object, "get_debug_info"):
                 debug_info = self.selected_object.get_debug_info()
             else:
                 debug_info = self.selected_object
 
-            y_offset = 62
+            back_btn_rect = pygame.Rect(15, 58, 60, 26)
+            pygame.draw.rect(panel_surface, BTN_COLOR, back_btn_rect, border_radius=4)
+            pygame.draw.rect(panel_surface, (60, 60, 80), back_btn_rect, 1, border_radius=4)
+            back_text = font_debug_label.render("< Back", True, TEXT_COLOR)
+            panel_surface.blit(back_text, (22, 63))
+
+            y_offset = 92
 
             obj_type = debug_info.get("type", "Object")
             obj_name = debug_info.get("name", "Unknown")
@@ -473,7 +623,7 @@ class DebugPanel:
 
             name_surface = font_debug.render(obj_name, True, DEBUG_VALUE)
             panel_surface.blit(name_surface, (15, y_offset))
-            y_offset += 30
+            y_offset += 25
 
             pygame.draw.line(
                 panel_surface,
@@ -482,15 +632,16 @@ class DebugPanel:
                 (self.rect.width - 15, y_offset),
                 1,
             )
-            y_offset += 14
+            y_offset += 10
 
             section_title = font_debug_label.render(
                 "PROPERTIES", True, (80, 80, 100)
             )
             panel_surface.blit(section_title, (15, y_offset))
-            y_offset += 26
+            y_offset += 22
 
             for key, field in self.input_fields:
+                field.rect.y = y_offset
                 if field.rect.y > self.rect.height - 50:
                     break
 
@@ -510,6 +661,7 @@ class DebugPanel:
                         (indicator_x - 6, indicator_y),
                         4,
                     )
+                y_offset += 32
 
             help_y = self.rect.height - 35
             pygame.draw.line(
@@ -871,7 +1023,8 @@ class TemplatePanel:
                     boxes = len(data.get("boxes", []))
                     rods = len(data.get("rods", []))
                     joints = len(data.get("joints", []))
-                    info = f"{bobs} bobs, {boxes} boxes, {rods} rods, {joints} joints"
+                    motors = len(data.get("motors", []))
+                    info = f"{bobs}b, {boxes}x, {rods}r, {joints}j, {motors}m"
                     info_text = font_debug_label.render(info, True, DEBUG_LABEL)
                     content_surface.blit(
                         info_text, (item_rect.x + 12, item_rect.y + 26)
@@ -913,6 +1066,8 @@ class SimulationUI:
         self.connecting_body = None
         self.connecting_anchor = None
         self.connecting_joint = None
+        self.motor_joint = None
+        self.motor_body1 = None
         self.current_fps = 60
         self.current_dt = 0
         self.force_start = None
@@ -927,6 +1082,7 @@ class SimulationUI:
             DEBUG_PANEL_WIDTH,
             HEIGHT - TOOLBAR_HEIGHT - 30,
         )
+        self.debug_panel.set_engine(engine)
 
         self.save_dialog = SaveDialog(
             WIDTH // 2 - 175,
@@ -986,11 +1142,20 @@ class SimulationUI:
             self.set_joint_mode,
             "JointButton",
         )
+        self.motor_btn = Button(
+            510,
+            btn_y,
+            55,
+            btn_h,
+            "Motor",
+            self.set_motor_mode,
+            "MotorButton",
+        )
         self.save_btn = Button(
-            510, btn_y, 70, btn_h, "Save", self.show_save_dialog, "SaveButton"
+            570, btn_y, 60, btn_h, "Save", self.show_save_dialog, "SaveButton"
         )
         self.templates_btn = Button(
-            585,
+            635,
             btn_y,
             50,
             btn_h,
@@ -1034,6 +1199,7 @@ class SimulationUI:
             self.force_btn,
             self.actuator_btn,
             self.joint_btn,
+            self.motor_btn,
             self.save_btn,
             self.templates_btn,
             self.start_btn,
@@ -1051,6 +1217,7 @@ class SimulationUI:
         self.force_btn.active = False
         self.actuator_btn.active = False
         self.joint_btn.active = False
+        self.motor_btn.active = False
 
     def set_bob_mode(self):
         self.mode = "bob"
@@ -1087,6 +1254,11 @@ class SimulationUI:
         self._clear_mode_buttons()
         self.joint_btn.active = True
 
+    def set_motor_mode(self):
+        self.mode = "motor"
+        self._clear_mode_buttons()
+        self.motor_btn.active = True
+
     def toggle_simulation(self):
         self.engine.toggle()
         self.start_btn.text = "Stop" if self.engine.running else "Start"
@@ -1119,11 +1291,13 @@ class SimulationUI:
         self.connecting_body = None
         self.connecting_anchor = None
         self.connecting_joint = None
+        self.motor_joint = None
+        self.motor_body1 = None
         self.force_start = None
         self.force_target = None
         self.resizing_box = None
         self.resize_handle = None
-        self.debug_panel.set_selected(None)
+        self.debug_panel.go_back_to_list()
 
     def get_button_at(self, x, y):
         for btn in self.buttons:
@@ -1181,6 +1355,11 @@ class SimulationUI:
                 if not clicked_body and not clicked_rod and not clicked_joint
                 else None
             )
+            clicked_motor = (
+                self.engine.get_motor_at(x, y)
+                if not clicked_body and not clicked_rod and not clicked_joint and not clicked_actuator
+                else None
+            )
 
             if self.mode == "force":
                 if clicked_body:
@@ -1197,12 +1376,10 @@ class SimulationUI:
                 self.debug_panel.set_selected(clicked_rod)
             elif clicked_actuator:
                 self.debug_panel.set_selected(clicked_actuator)
+            elif clicked_motor:
+                self.debug_panel.set_selected(clicked_motor)
             else:
-                self.debug_panel.set_selected(
-                    self.engine.get_debug_info(
-                        self.current_fps, self.current_dt
-                    )
-                )
+                self.debug_panel.go_back_to_list()
 
             if self.engine.running:
                 if clicked_body:
@@ -1300,6 +1477,32 @@ class SimulationUI:
                     else:
                         new_joint = self.engine.create_joint(x, y)
                         self.debug_panel.set_selected(new_joint)
+                elif self.mode == "motor":
+                    if clicked_motor:
+                        self.debug_panel.set_selected(clicked_motor)
+                    elif clicked_joint:
+                        if self.motor_joint is None:
+                            self.motor_joint = clicked_joint
+                            self.motor_body1 = None
+                            self.debug_panel.set_selected(clicked_joint)
+                        else:
+                            self.motor_joint = clicked_joint
+                            self.motor_body1 = None
+                    elif clicked_body:
+                        if self.motor_joint is None:
+                            pass
+                        elif self.motor_body1 is None:
+                            self.motor_body1 = clicked_body
+                        elif self.motor_body1 != clicked_body:
+                            new_motor = self.engine.create_motor(
+                                self.motor_joint,
+                                self.motor_body1,
+                                clicked_body,
+                            )
+                            if new_motor:
+                                self.debug_panel.set_selected(new_motor)
+                            self.motor_joint = None
+                            self.motor_body1 = None
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             x, y = event.pos
@@ -1322,6 +1525,11 @@ class SimulationUI:
                     if not clicked_body and not clicked_rod and not clicked_joint
                     else None
                 )
+                clicked_motor = (
+                    self.engine.get_motor_at(x, y)
+                    if not clicked_body and not clicked_rod and not clicked_joint and not clicked_actuator
+                    else None
+                )
 
                 if clicked_body:
                     self.debug_panel.set_selected(clicked_body)
@@ -1331,12 +1539,10 @@ class SimulationUI:
                     self.debug_panel.set_selected(clicked_rod)
                 elif clicked_actuator:
                     self.debug_panel.set_selected(clicked_actuator)
+                elif clicked_motor:
+                    self.debug_panel.set_selected(clicked_motor)
                 else:
-                    self.debug_panel.set_selected(
-                        self.engine.get_debug_info(
-                            self.current_fps, self.current_dt
-                        )
-                    )
+                    self.debug_panel.go_back_to_list()
 
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if self.mode == "force" and self.force_start and self.force_target:
@@ -1382,6 +1588,8 @@ class SimulationUI:
                 self.connecting_body = None
                 self.connecting_anchor = None
                 self.connecting_joint = None
+                self.motor_joint = None
+                self.motor_body1 = None
                 self.force_start = None
                 self.force_target = None
             elif event.key == pygame.K_SPACE:
@@ -1438,13 +1646,13 @@ class SimulationUI:
         mode_text = font_small.render(
             f"Mode: {self.mode.upper()}", True, (120, 120, 140)
         )
-        surface.blit(mode_text, (645, 22))
+        surface.blit(mode_text, (695, 22))
 
         if self.engine.running:
             status = font_small.render("RUNNING", True, (80, 200, 120))
         else:
             status = font_small.render("PAUSED", True, (255, 107, 107))
-        surface.blit(status, (755, 22))
+        surface.blit(status, (810, 22))
 
         cam = int(self.camera_x)
 
@@ -1671,6 +1879,40 @@ class SimulationUI:
                 else:
                     ax, ay = int(body.body.position.x) - cam, int(body.body.position.y)
                 pygame.draw.line(surface, JOINT_COLOR, (x, y), (ax, ay), 2)
+
+        for motor in self.engine.motors:
+            jx = int(motor.joint_wrapper.joint.position.x) - cam
+            jy = int(motor.joint_wrapper.joint.position.y)
+            b1x = int(motor.body1.body.position.x) - cam
+            b1y = int(motor.body1.body.position.y)
+            b2x = int(motor.body2.body.position.x) - cam
+            b2y = int(motor.body2.body.position.y)
+
+            is_selected = self.debug_panel.selected_object == motor
+
+            if is_selected:
+                color = SELECTED_COLOR
+            else:
+                color = MOTOR_COLOR
+
+            pygame.draw.line(surface, color, (jx, jy), (b1x, b1y), 2)
+            pygame.draw.line(surface, color, (jx, jy), (b2x, b2y), 2)
+
+            if is_selected:
+                pygame.draw.circle(surface, SELECTED_BORDER, (jx, jy), motor.joint_wrapper.radius + 6, 2)
+            pygame.draw.circle(surface, color, (jx, jy), motor.joint_wrapper.radius + 3, 2)
+
+        if self.motor_joint:
+            mx, my = pygame.mouse.get_pos()
+            jx = int(self.motor_joint.joint.position.x) - cam
+            jy = int(self.motor_joint.joint.position.y)
+            if self.motor_body1:
+                b1x = int(self.motor_body1.body.position.x) - cam
+                b1y = int(self.motor_body1.body.position.y)
+                pygame.draw.line(surface, MOTOR_COLOR, (jx, jy), (b1x, b1y), 2)
+                pygame.draw.line(surface, (180, 80, 140), (jx, jy), (mx, my), 2)
+            else:
+                pygame.draw.line(surface, (180, 80, 140), (jx, jy), (mx, my), 2)
 
         if self.connecting_joint:
             mx, my = pygame.mouse.get_pos()

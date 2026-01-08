@@ -7,6 +7,7 @@ from engine.templates.contraint import Contraint
 from engine.templates.collision_handler import Collision_Handler
 from engine.templates.actuator import Actuator
 from engine.templates.joint import Joint
+from engine.templates.motor import Motor
 
 TEMPLATES_FILE = os.path.join(os.path.dirname(__file__), "templates.json")
 
@@ -425,6 +426,66 @@ class JointWrapper:
             self.joint.radius = self.radius
 
 
+class MotorWrapper:
+    _id_counter = 0
+
+    def __init__(self, joint_wrapper, body1, body2, min_angle=-math.pi, max_angle=math.pi):
+        MotorWrapper._id_counter += 1
+        self.id = MotorWrapper._id_counter
+        self.joint_wrapper = joint_wrapper
+        self.body1 = body1
+        self.body2 = body2
+        self.motor = Motor(
+            joint=joint_wrapper.joint,
+            body1=body1.body,
+            body2=body2.body,
+            min_angle=min_angle,
+            max_angle=max_angle,
+        )
+        self.target_angle = 0.0
+        self.name = f"Motor_{self.id}"
+
+    def update(self, target_angle=None):
+        if target_angle is not None:
+            self.target_angle = target_angle
+        self.motor.update(self.target_angle)
+
+    def set_target_angle(self, angle):
+        self.target_angle = angle
+
+    def get_debug_info(self):
+        rel_angle = self.motor.b2.orientation - self.motor.b1.orientation
+        return {
+            "type": "Motor",
+            "id": self.id,
+            "name": self.name,
+            "joint": self.joint_wrapper.name,
+            "body1": self.body1.name,
+            "body2": self.body2.name,
+            "target_angle": round(self.target_angle, 4),
+            "rel_angle": round(rel_angle, 4),
+            "min_angle": round(self.motor.min_angle, 4),
+            "max_angle": round(self.motor.max_angle, 4),
+            "kp_motor": round(self.motor.kp_motor, 2),
+            "kd_motor": round(self.motor.kd_motor, 2),
+            "max_torque": round(self.motor.max_torque, 2),
+        }
+
+    def set_property(self, key, value):
+        if key == "target_angle":
+            self.target_angle = float(value)
+        elif key == "min_angle":
+            self.motor.min_angle = float(value)
+        elif key == "max_angle":
+            self.motor.max_angle = float(value)
+        elif key == "kp_motor":
+            self.motor.kp_motor = max(0, float(value))
+        elif key == "kd_motor":
+            self.motor.kd_motor = max(0, float(value))
+        elif key == "max_torque":
+            self.motor.max_torque = max(0, float(value))
+
+
 class PointConstraint:
     def __init__(self, box, anchor_name, bob):
         self.box = box
@@ -747,6 +808,7 @@ class SimulationEngine:
         self.rods = []
         self.actuators = []
         self.joints = []
+        self.motors = []
         self.running = False
         self.iterations = 8
         self.dragging_bob = None
@@ -830,6 +892,25 @@ class SimulationEngine:
 
     def connect_to_joint(self, joint, body, anchor=None):
         joint.connect(body, anchor)
+
+    def create_motor(self, joint_wrapper, body1, body2, min_angle=-math.pi, max_angle=math.pi):
+        motor = MotorWrapper(joint_wrapper, body1, body2, min_angle, max_angle)
+        self.motors.append(motor)
+        return motor
+
+    def get_motor_at(self, x, y):
+        for motor in reversed(self.motors):
+            jx = motor.joint_wrapper.joint.position.x
+            jy = motor.joint_wrapper.joint.position.y
+            dx = x - jx
+            dy = y - jy
+            if (dx * dx + dy * dy) <= (motor.joint_wrapper.radius + 12) ** 2:
+                return motor
+        return None
+
+    def delete_motor(self, motor):
+        if motor in self.motors:
+            self.motors.remove(motor)
 
     def get_actuator_at(self, x, y):
         for actuator in reversed(self.actuators):
@@ -924,6 +1005,7 @@ class SimulationEngine:
         self.rods = []
         self.actuators = []
         self.joints = []
+        self.motors = []
         self.running = False
         self.dragging_bob = None
         self.dragging_box = None
@@ -934,6 +1016,7 @@ class SimulationEngine:
         Rod._id_counter = 0
         Actuator._id_counter = 0
         JointWrapper._id_counter = 0
+        MotorWrapper._id_counter = 0
         self.ground = self.create_box(
             self.width / 2, self.height - 20, 100000, 40, pinned=True
         )
@@ -971,6 +1054,9 @@ class SimulationEngine:
 
         for actuator in self.actuators:
             actuator.apply_forces(dt)
+
+        for motor in self.motors:
+            motor.update()
 
         for bob in self.bobs:
             if bob != self.dragging_bob:
@@ -1025,6 +1111,7 @@ class SimulationEngine:
             "box_count": len(self.boxes),
             "rod_count": len(self.rods),
             "joint_count": len(self.joints),
+            "motor_count": len(self.motors),
             "iterations": self.iterations,
             "gravity.x": GRAVITY.x,
             "gravity.y": GRAVITY.y,
@@ -1120,8 +1207,10 @@ class SimulationEngine:
                     }
                 )
 
+        joint_map = {}
         joints_data = []
-        for joint in self.joints:
+        for i, joint in enumerate(self.joints):
+            joint_map[joint] = i
             connections = []
             for body, anchor, constraint in joint.connected_bodies:
                 if body in bob_map:
@@ -1145,12 +1234,35 @@ class SimulationEngine:
                 "connections": connections,
             })
 
+        motors_data = []
+        for motor in self.motors:
+            joint_idx = joint_map.get(motor.joint_wrapper, -1)
+            body1_type = "bob" if motor.body1 in bob_map else "box"
+            body2_type = "bob" if motor.body2 in bob_map else "box"
+            body1_idx = bob_map.get(motor.body1, box_map.get(motor.body1, -1))
+            body2_idx = bob_map.get(motor.body2, box_map.get(motor.body2, -1))
+            if joint_idx >= 0 and body1_idx >= 0 and body2_idx >= 0:
+                motors_data.append({
+                    "joint_idx": joint_idx,
+                    "body1_type": body1_type,
+                    "body1_idx": body1_idx,
+                    "body2_type": body2_type,
+                    "body2_idx": body2_idx,
+                    "min_angle": motor.motor.min_angle,
+                    "max_angle": motor.motor.max_angle,
+                    "target_angle": motor.target_angle,
+                    "kp_motor": motor.motor.kp_motor,
+                    "kd_motor": motor.motor.kd_motor,
+                    "max_torque": motor.motor.max_torque,
+                })
+
         return {
             "bobs": bobs_data,
             "boxes": boxes_data,
             "rods": rods_data,
             "actuators": actuators_data,
             "joints": joints_data,
+            "motors": motors_data,
         }
 
     def load_template(self, data, offset_x=0, offset_y=0):
@@ -1240,11 +1352,13 @@ class SimulationEngine:
                     if "damping" in actuator_data:
                         actuator.damping = actuator_data["damping"]
 
-        for joint_data in data.get("joints", []):
+        joint_map = {}
+        for i, joint_data in enumerate(data.get("joints", [])):
             joint = self.create_joint(
                 joint_data["x"] + offset_x,
                 joint_data["y"] + offset_y,
             )
+            joint_map[i] = joint
             if "radius" in joint_data:
                 joint.radius = joint_data["radius"]
                 joint.joint.radius = joint_data["radius"]
@@ -1264,6 +1378,39 @@ class SimulationEngine:
                 )
                 if body:
                     joint.connect(body, anchor)
+
+        for motor_data in data.get("motors", []):
+            joint_idx = motor_data.get("joint_idx", -1)
+            body1_type = motor_data.get("body1_type", "bob")
+            body2_type = motor_data.get("body2_type", "bob")
+            body1_idx = motor_data.get("body1_idx", -1)
+            body2_idx = motor_data.get("body2_idx", -1)
+
+            joint = joint_map.get(joint_idx)
+            body1 = (
+                bob_map.get(body1_idx)
+                if body1_type == "bob"
+                else box_map.get(body1_idx)
+            )
+            body2 = (
+                bob_map.get(body2_idx)
+                if body2_type == "bob"
+                else box_map.get(body2_idx)
+            )
+
+            if joint and body1 and body2:
+                min_angle = motor_data.get("min_angle", -math.pi)
+                max_angle = motor_data.get("max_angle", math.pi)
+                motor = self.create_motor(joint, body1, body2, min_angle, max_angle)
+                if motor:
+                    if "target_angle" in motor_data:
+                        motor.target_angle = motor_data["target_angle"]
+                    if "kp_motor" in motor_data:
+                        motor.motor.kp_motor = motor_data["kp_motor"]
+                    if "kd_motor" in motor_data:
+                        motor.motor.kd_motor = motor_data["kd_motor"]
+                    if "max_torque" in motor_data:
+                        motor.motor.max_torque = motor_data["max_torque"]
 
 
 def load_templates():
