@@ -2118,5 +2118,104 @@
         ]
       }
     ]
+  },
+  "b_v1": {
+    "bobs": [],
+    "boxes": [
+      {
+        "x": 325,
+        "y": 599,
+        "width": 10,
+        "height": 146.0,
+        "pinned": false,
+        "orientation": 0.0
+      },
+      {
+        "x": 410,
+        "y": 511,
+        "width": 180.0,
+        "height": 10,
+        "pinned": false,
+        "orientation": 0.0
+      },
+      {
+        "x": 494,
+        "y": 601,
+        "width": 10,
+        "height": 146.0,
+        "pinned": false,
+        "orientation": 0.0
+      }
+    ],
+    "rods": [],
+    "actuators": [],
+    "joints": [
+      {
+        "x": 322,
+        "y": 512,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 1,
+            "anchor": "left"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 0,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 499,
+        "y": 509,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 1,
+            "anchor": "right"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 2,
+            "anchor": "top"
+          }
+        ]
+      }
+    ],
+    "motors": [
+      {
+        "joint_idx": 0,
+        "body1_type": "box",
+        "body1_idx": 1,
+        "body2_type": "box",
+        "body2_idx": 0,
+        "min_angle": -3.141592653589793,
+        "max_angle": 3.141592653589793,
+        "target_angle": 0.0,
+        "kp_motor": 800000.0,
+        "kd_motor": 800.0,
+        "max_torque": 50000000000
+      },
+      {
+        "joint_idx": 1,
+        "body1_type": "box",
+        "body1_idx": 1,
+        "body2_type": "box",
+        "body2_idx": 2,
+        "min_angle": -3.141592653589793,
+        "max_angle": 3.141592653589793,
+        "target_angle": 0.0,
+        "kp_motor": 800000.0,
+        "kd_motor": 800.0,
+        "max_torque": 50000000000
+      }
+    ]
   }
 }

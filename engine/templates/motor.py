@@ -19,17 +19,24 @@ class Motor:
         self.b1 = body1
         self.b2 = body2
 
-        self.kp_motor = 100
-        self.kd_motor = 5
-        self.max_torque = 50.0
+        self.rest_angle = normalize_angle(body2.orientation - body1.orientation)
+
+        self.kp_motor = 800000.0
+        self.kd_motor = 800.0
+        self.max_torque = 50000000000 #allah wu akbar
 
         self.min_angle = min_angle
         self.max_angle = max_angle
-        self.kp_limit = 150
-        self.kd_limit = 50
+        self.kp_limit = 30000000000.0 #allah wu akbar
+        self.kd_limit = 30000000000.0
 
+    
     def update(self, target_angle: float):
-        rel_angle = normalize_angle(self.b2.orientation - self.b1.orientation)
+        target_angle = normalize_angle(target_angle)
+
+        rel_angle = normalize_angle(
+            (self.b2.orientation - self.b1.orientation) - self.rest_angle
+        )
         rel_ang_vel = self.b2.ang_velocity - self.b1.ang_velocity
 
         motor_error = normalize_angle(target_angle - rel_angle)
@@ -39,12 +46,11 @@ class Motor:
 
         if rel_angle < self.min_angle:
             limit_error = self.min_angle - rel_angle
-            if motor_torque < 0:
-                limit_torque = self.kp_limit * limit_error - self.kd_limit * rel_ang_vel
+            limit_torque = self.kp_limit * limit_error - self.kd_limit * rel_ang_vel
+
         elif rel_angle > self.max_angle:
             limit_error = self.max_angle - rel_angle
-            if motor_torque > 0:
-                limit_torque = self.kp_limit * limit_error - self.kd_limit * rel_ang_vel
+            limit_torque = self.kp_limit * limit_error - self.kd_limit * rel_ang_vel
 
         torque = motor_torque + limit_torque
         torque = clamp(torque, -self.max_torque, self.max_torque)

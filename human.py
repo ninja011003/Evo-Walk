@@ -17,18 +17,18 @@ class Human:
         self.height = height or self.DEFAULT_HEIGHT
         self.engine = SimulationEngine(self.width, self.height)
         self._load_bipedal()
-        self.actuators = self.engine.actuators
+        self.motors = self.engine.motors
         self.ui = None
         if not self.headless:
             self._init_ui()
 
     def _load_bipedal(self):
         templates = load_templates()
-        if "bipedel_v3" not in templates:
+        if "b_v1" not in templates:
             raise ValueError(
-                "template 'bipedel_v3' not found in templates.json. "
+                "template 'b_v1' not found in templates.json. "
             )
-        template_data = templates["bipedel_v3"]
+        template_data = templates["b_v1"]
         self.engine.load_template(template_data)
 
     def _init_ui(self):
@@ -36,22 +36,22 @@ class Human:
         self.ui = SimulationUI(self.engine)
 
     def set_activations(self, activations: list) -> dict:
-        if len(activations) != 4:
+        if len(activations) != 2:
             raise ValueError(
-                f"Expected 4 activation values, got {len(activations)}. "
-                "provide one activation value per muscle."
+                f"Expected 2 activation values, got {len(activations)}. "
+                "provide one activation value per motor."
             )
 
-        for i, (actuator, activation) in enumerate(
-            zip(self.actuators, activations)
-        ):
+        import math
+        for motor, activation in zip(self.motors, activations):
             clamped = max(0.0, min(1.0, float(activation)))
-            actuator.set_activation(clamped)
+            target_angle = (clamped - 0.5) * 2 * math.pi
+            motor.set_target_angle(target_angle)
 
         return {
             "x": self.get_center_of_mass()[0],
             "y": self.get_center_of_mass()[1],
-            "activations": [a.activation for a in self.actuators],
+            "target_angles": [m.target_angle for m in self.motors],
         }
 
     def get_center_of_mass(self) -> tuple:
@@ -115,13 +115,13 @@ class Human:
             "center_of_mass": {"x": com[0], "y": com[1]},
             "boxes": self.get_boxes_positions(),
             "bobs": self.get_bobs_positions(),
-            "actuator_activations": [a.activation for a in self.actuators],
+            "motor_target_angles": [m.target_angle for m in self.motors],
         }
 
     def reset(self):
         self.engine.clear()
         self._load_bipedal()
-        self.actuators = self.engine.actuators
+        self.motors = self.engine.motors
 
     def start(self):
         self.engine.start()
@@ -154,9 +154,9 @@ class Human:
             if self.engine.running:
                 phase = (frame % 60) / 60.0
                 if phase < 0.5:
-                    activations = [0.8, 0.2, 0.2, 0.8]
+                    activations = [0.8, 0.2]
                 else:
-                    activations = [0.2, 0.8, 0.8, 0.2]
+                    activations = [0.2, 0.8]
                 self.set_activations(activations)
                 frame += 1
 
@@ -211,9 +211,9 @@ if __name__ == "__main__":
             phase = (i % 60) / 60.0
 
             if phase < 0.5:
-                activations = [0.8, 0.2, 0.2, 0.8]
+                activations = [0.8, 0.2]
             else:
-                activations = [0.2, 0.8, 0.8, 0.2]
+                activations = [0.2, 0.8]
 
             human.set_activations(activations)
             state = human.step()

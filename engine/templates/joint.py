@@ -40,7 +40,7 @@ class Joint:
             body_b=self,
             local_a=body_anchor,
             local_b=joint_anchor,
-            length=0.0
+            length=self.radius
         )
         self.constraints.append(constraint)
         return constraint

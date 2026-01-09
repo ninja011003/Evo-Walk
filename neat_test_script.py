@@ -14,7 +14,7 @@ import math
 SIMULATION_STEPS = 100
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
 CHECKPOINT_PATH = os.path.join(os.path.dirname(__file__), "best_genome.pkl")
-NORMAL_TORSO_BALANCE = 500.0
+NORMAL_TORSO_BALANCE = 600
 
 def check_key():
     if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
@@ -37,38 +37,29 @@ def eval_genome(genome, config):
         inputs = input_vec(human)
         left_foot = inputs[-2]
         right_foot = inputs[-1]
-        
-        if left_foot>0.0 and right_foot>0.0:
-            fitness+=10000.0
-        elif left_foot>0.0 or right_foot>0.0:
-            fitness+=10
-        else:
-            fitness-=100
-        outputs = net.activate(inputs)
 
-        activations = [max(0.0, min(1.0, o)) for o in outputs]
+        outputs = net.activate(inputs)
+        activations = outputs
         human.set_activations(activations)
         human.step()
 
         y = torso.body.position.y
-        height_error = abs(y - NORMAL_TORSO_BALANCE)
+
+        if y > 750:
+            return fitness - 500.0
 
         curr_x = torso.body.position.x
         dx = curr_x - prev_x
         prev_x = curr_x
 
-        fitness += dx * 10.0
+        if 500 <= y <= 650:
+            fitness += 2.0
+            fitness += dx * 10.0
 
-        if height_error > 150.0:
-            fitness -= 5.0
-
-        if dx < 0.1:
-            stagnant_steps += 1
+            if left_foot > 0.0 and right_foot > 0.0:
+                fitness += 5.0
         else:
-            stagnant_steps = 0
-
-        if stagnant_steps > 20:
-            fitness -= 50.0
+            fitness -= 20.0
 
         effort_penalty += sum(abs(a) for a in activations)
 
