@@ -67,7 +67,7 @@ def eval_genome(genome, config):
             fitness += dx * 100.0
 
             if -0.25 <= torso_angle <= 0.25:
-                fitness += 10.0
+                fitness += 10000.0
 
             if left_foot_contact > 0.0 and right_foot_contact > 0.0:
                 fitness += 5.0
@@ -143,6 +143,7 @@ def run(start_fresh=True):
             checkpoint = pickle.load(f)
         pop = checkpoint["population"]
         generation = checkpoint["generation"]
+        pop.reporters.reporters.clear()
         print(f"Resuming from generation {generation}")
     
     pop.add_reporter(neat.StdOutReporter(True))
