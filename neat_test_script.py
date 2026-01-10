@@ -69,6 +69,8 @@ def eval_genome(genome, config):
 
             if -0.25 <= torso_angle <= 0.25:
                 fitness += 10000.0
+            else:
+                fitness -= 10000.0
 
             if left_foot_contact > 0.0 and right_foot_contact > 0.0:
                 fitness += 5.0

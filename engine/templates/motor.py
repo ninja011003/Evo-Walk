@@ -4,8 +4,6 @@ from engine.templates.joint import Joint
 from engine.utils.helper import clamp, normalize_angle
 import math
 
-
-
 class Motor:
     def __init__(
         self,
@@ -27,8 +25,8 @@ class Motor:
 
         self.min_angle = min_angle
         self.max_angle = max_angle
-        self.kp_limit = 30000000000.0 #allah wu akbar
-        self.kd_limit = 30000000000.0
+        self.kp_limit = 1000000.0
+        self.kd_limit = 1000.0
 
     
     def update(self, target_angle: float):

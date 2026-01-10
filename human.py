@@ -58,7 +58,9 @@ class Human:
 
         for motor, activation in zip(self.motors, activations):
             clamped = max(0.0, min(1.0, float(activation)))
-            target_angle = (clamped - 0.5) * 2 * math.pi
+            min_a = motor.motor.min_angle
+            max_a = motor.motor.max_angle
+            target_angle = min_a + clamped * (max_a - min_a)
             motor.set_target_angle(target_angle)
 
         return {
