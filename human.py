@@ -3,6 +3,7 @@ from engine.templates.vector import Vector
 import pygame
 from vizualize import SimulationUI
 import argparse
+import math
 
 
 class Human:
@@ -24,11 +25,11 @@ class Human:
 
     def _load_bipedal(self):
         templates = load_templates()
-        if "b_v1" not in templates:
+        if "FINAL" not in templates:
             raise ValueError(
-                "template 'b_v1' not found in templates.json. "
+                "template 'FINAL' not found in templates.json. "
             )
-        template_data = templates["b_v1"]
+        template_data = templates["FINAL"]
         self.engine.load_template(template_data)
 
     def _init_ui(self):
@@ -36,13 +37,13 @@ class Human:
         self.ui = SimulationUI(self.engine)
 
     def set_activations(self, activations: list) -> dict:
-        if len(activations) != 2:
+        num_motors = len(self.motors)
+        if len(activations) != num_motors:
             raise ValueError(
-                f"Expected 2 activation values, got {len(activations)}. "
+                f"Expected {num_motors} activation values, got {len(activations)}. "
                 "provide one activation value per motor."
             )
 
-        import math
         for motor, activation in zip(self.motors, activations):
             clamped = max(0.0, min(1.0, float(activation)))
             target_angle = (clamped - 0.5) * 2 * math.pi
@@ -141,6 +142,7 @@ class Human:
 
         initial_com_x = self.get_center_of_mass()[0]
         score_font = pygame.font.SysFont("SF Mono", 24, bold=True)
+        num_motors = len(self.motors)
 
         while running:
             dt = self.ui.tick()
@@ -153,10 +155,12 @@ class Human:
 
             if self.engine.running:
                 phase = (frame % 60) / 60.0
-                if phase < 0.5:
-                    activations = [0.8, 0.2]
-                else:
-                    activations = [0.2, 0.8]
+                activations = []
+                for i in range(num_motors):
+                    if i % 2 == 0:
+                        activations.append(0.8 if phase < 0.5 else 0.2)
+                    else:
+                        activations.append(0.2 if phase < 0.5 else 0.8)
                 self.set_activations(activations)
                 frame += 1
 
@@ -206,14 +210,16 @@ if __name__ == "__main__":
         print("headless mode...")
         human = Human(headless=True)
         human.start()
+        num_motors = len(human.motors)
 
         for i in range(args.steps):
             phase = (i % 60) / 60.0
-
-            if phase < 0.5:
-                activations = [0.8, 0.2]
-            else:
-                activations = [0.2, 0.8]
+            activations = []
+            for j in range(num_motors):
+                if j % 2 == 0:
+                    activations.append(0.8 if phase < 0.5 else 0.2)
+                else:
+                    activations.append(0.2 if phase < 0.5 else 0.8)
 
             human.set_activations(activations)
             state = human.step()
