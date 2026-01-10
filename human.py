@@ -11,11 +11,12 @@ class Human:
     DEFAULT_HEIGHT = 720
 
     def __init__(
-        self, headless: bool = False, width: int = None, height: int = None
+        self, headless: bool = False, width: int = None, height: int = None, config_file: str = None
     ):
         self.headless = headless
         self.width = width or self.DEFAULT_WIDTH
         self.height = height or self.DEFAULT_HEIGHT
+        self.config_file = config_file
         self.engine = SimulationEngine(self.width, self.height)
         self._load_bipedal()
         self.motors = self.engine.motors
@@ -24,10 +25,21 @@ class Human:
             self._init_ui()
 
     def _load_bipedal(self):
-        templates = load_templates()
+        import json
+        import os
+        
+        if self.config_file:
+            config_path = self.config_file
+            if not os.path.isabs(config_path):
+                config_path = os.path.join(os.path.dirname(__file__), config_path)
+            with open(config_path, "r") as f:
+                templates = json.load(f)
+        else:
+            templates = load_templates()
+        
         if "FINAL" not in templates:
             raise ValueError(
-                "template 'FINAL' not found in templates.json. "
+                "template 'FINAL' not found in config file. "
             )
         template_data = templates["FINAL"]
         self.engine.load_template(template_data)

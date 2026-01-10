@@ -14,6 +14,7 @@ import math
 SIMULATION_STEPS = 100
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
 CHECKPOINT_PATH = os.path.join(os.path.dirname(__file__), "best_genome.pkl")
+HUMAN_CONFIG = os.path.join(os.path.dirname(__file__), "human.json")
 ANGLE_RATE = 0.6
 
 NUM_INPUTS = 24
@@ -36,7 +37,7 @@ def simulation_step(human, activations):
 
 def eval_genome(genome, config):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
-    human = Human(headless=True)
+    human = Human(headless=True, config_file=HUMAN_CONFIG)
     human.start()
 
     torso = human.engine.boxes[1]
@@ -88,7 +89,7 @@ def run_best_with_ui(genome, config):
     pygame.init()
     pygame.font.init()
     net = neat.nn.FeedForwardNetwork.create(genome, config)
-    human = Human(headless=False)
+    human = Human(headless=False, config_file=HUMAN_CONFIG)
     human.start()
     initial_x = human.get_center_of_mass()[0]
     score_font = pygame.font.SysFont("SF Mono", 24, bold=True)
