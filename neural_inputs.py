@@ -82,9 +82,9 @@ def all_inputs(human: Human) -> dict:
 def input_vec(human: Human) -> list:
     inputs = []
     inputs.append(torso_angle(human) / math.pi)
-    inputs.append(clamp(torso_ang_vel(human) / MAX_ANG_VEL))
-    inputs.append(clamp(torso_vel_x(human) / MAX_TORSO_VEL))
-    inputs.append(clamp(torso_vel_y(human) / MAX_TORSO_VEL))
+    # inputs.append(clamp(torso_ang_vel(human) / MAX_ANG_VEL))
+    # inputs.append(clamp(torso_vel_x(human) / MAX_TORSO_VEL))
+    # inputs.append(clamp(torso_vel_y(human) / MAX_TORSO_VEL))
     inputs.append(joint_angle(human, 0) / MAX_JOINT_ANGLE)
     inputs.append(clamp(joint_ang_vel(human, 0) / MAX_ANG_VEL))
     inputs.append(joint_angle(human, 2) / MAX_JOINT_ANGLE)

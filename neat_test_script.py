@@ -15,11 +15,23 @@ SIMULATION_STEPS = 100
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
 CHECKPOINT_PATH = os.path.join(os.path.dirname(__file__), "best_genome.pkl")
 NORMAL_TORSO_BALANCE = 600
+ANGLE_RATE = 0.6
 
 def check_key():
     if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
         return sys.stdin.read(1)
     return None
+
+def compute_activations(net, human):
+    inputs = input_vec(human)
+    outputs = net.activate(inputs)
+    # outputs = [0.0, 0.0]
+    activations = [outputs[i] * ANGLE_RATE for i in range(len(outputs))]
+    return inputs, activations
+
+def simulation_step(human, activations):
+    human.set_activations(activations)
+    human.step()
 
 def eval_genome(genome, config):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
@@ -31,17 +43,13 @@ def eval_genome(genome, config):
 
     fitness = 0.0
     effort_penalty = 0.0
-    stagnant_steps = 0
 
     for _ in range(SIMULATION_STEPS):
-        inputs = input_vec(human)
+        inputs, activations = compute_activations(net, human)
         left_foot = inputs[-2]
         right_foot = inputs[-1]
 
-        outputs = net.activate(inputs)
-        activations = outputs
-        human.set_activations(activations)
-        human.step()
+        simulation_step(human, activations)
 
         y = torso.body.position.y
 
@@ -52,9 +60,9 @@ def eval_genome(genome, config):
         dx = curr_x - prev_x
         prev_x = curr_x
 
-        if 500 <= y <= 650:
+        if y <= 550:
             fitness += 2.0
-            fitness += dx * 10.0
+            fitness += dx * 100.0
 
             if left_foot > 0.0 and right_foot > 0.0:
                 fitness += 5.0
@@ -64,10 +72,6 @@ def eval_genome(genome, config):
         effort_penalty += sum(abs(a) for a in activations)
 
     return fitness - 0.01 * effort_penalty
-
-
-
-
 
 
 def eval_genomes(genomes, config):
@@ -94,10 +98,10 @@ def run_best_with_ui(genome, config):
                     running = False
             else:
                 human.ui.handle_event(event)
-        inputs = input_vec(human)
-        outputs = net.activate(inputs)
-        activations = [max(0.0, min(1.0, o)) for o in outputs]
+        
+        inputs, activations = compute_activations(net, human)
         human.set_activations(activations)
+        
         current_x = human.get_center_of_mass()[0]
         target_camera_x = current_x - human.width / 2
         human.ui.camera_x += (target_camera_x - human.ui.camera_x) * 0.1
@@ -176,4 +180,3 @@ def run(start_fresh=True):
 if __name__ == "__main__":
     start_fresh = "--continue" not in sys.argv
     run(start_fresh=start_fresh)
-

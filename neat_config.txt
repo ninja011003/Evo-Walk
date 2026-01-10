@@ -7,11 +7,11 @@ no_fitness_termination = True
 
 
 [DefaultGenome]
-num_inputs              = 12
+num_inputs              = 9
 num_hidden              = 0
 num_outputs             = 2
 
-feed_forward            = False
+feed_forward            = True
 
 initial_connection      = partial_direct 0.5
 
