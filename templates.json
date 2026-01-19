@@ -3042,5 +3042,170 @@
         "max_torque": 50000000000
       }
     ]
+  },
+  "bipedal_v2": {
+    "bobs": [],
+    "boxes": [
+      {
+        "x": 382,
+        "y": 461,
+        "width": 15,
+        "height": 80,
+        "pinned": false,
+        "orientation": 0.0
+      },
+      {
+        "x": 382,
+        "y": 618,
+        "width": 15,
+        "height": 80,
+        "pinned": false,
+        "orientation": 0.0
+      },
+      {
+        "x": 580,
+        "y": 616,
+        "width": 15,
+        "height": 80,
+        "pinned": false,
+        "orientation": 0.0
+      },
+      {
+        "x": 584,
+        "y": 454,
+        "width": 15,
+        "height": 80,
+        "pinned": false,
+        "orientation": 0.0
+      },
+      {
+        "x": 471,
+        "y": 272,
+        "width": 15.0,
+        "height": 200.0,
+        "pinned": false,
+        "orientation": 0.0
+      }
+    ],
+    "rods": [],
+    "actuators": [],
+    "joints": [
+      {
+        "x": 384,
+        "y": 544,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 0,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 1,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 576,
+        "y": 540,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 3,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 2,
+            "anchor": "top"
+          }
+        ]
+      },
+      {
+        "x": 470,
+        "y": 411,
+        "radius": 8,
+        "mass": 0.5,
+        "orientation": 0.0,
+        "connections": [
+          {
+            "body_type": "box",
+            "body_idx": 4,
+            "anchor": "bottom"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 0,
+            "anchor": "top"
+          },
+          {
+            "body_type": "box",
+            "body_idx": 3,
+            "anchor": "top"
+          }
+        ]
+      }
+    ],
+    "motors": [
+      {
+        "joint_idx": 2,
+        "body1_type": "box",
+        "body1_idx": 4,
+        "body2_type": "box",
+        "body2_idx": 0,
+        "min_angle": -3.141592653589793,
+        "max_angle": 3.141592653589793,
+        "target_angle": 0.0,
+        "kp_motor": 800000.0,
+        "kd_motor": 800.0,
+        "max_torque": 50000000000
+      },
+      {
+        "joint_idx": 2,
+        "body1_type": "box",
+        "body1_idx": 4,
+        "body2_type": "box",
+        "body2_idx": 3,
+        "min_angle": -3.141592653589793,
+        "max_angle": 3.141592653589793,
+        "target_angle": 0.0,
+        "kp_motor": 800000.0,
+        "kd_motor": 800.0,
+        "max_torque": 50000000000
+      },
+      {
+        "joint_idx": 0,
+        "body1_type": "box",
+        "body1_idx": 0,
+        "body2_type": "box",
+        "body2_idx": 1,
+        "min_angle": -3.141592653589793,
+        "max_angle": 3.141592653589793,
+        "target_angle": 0.0,
+        "kp_motor": 800000.0,
+        "kd_motor": 800.0,
+        "max_torque": 50000000000
+      },
+      {
+        "joint_idx": 1,
+        "body1_type": "box",
+        "body1_idx": 3,
+        "body2_type": "box",
+        "body2_idx": 2,
+        "min_angle": -3.141592653589793,
+        "max_angle": 3.141592653589793,
+        "target_angle": 0.0,
+        "kp_motor": 800000.0,
+        "kd_motor": 800.0,
+        "max_torque": 50000000000
+      }
+    ]
   }
 }

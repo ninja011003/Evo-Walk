@@ -37,11 +37,11 @@ class Human:
         else:
             templates = load_templates()
         
-        if "FINAL" not in templates:
+        if "bipedal_v2" not in templates:
             raise ValueError(
-                "template 'FINAL' not found in config file. "
+                "template 'bipedal_v2' not found in config file. "
             )
-        template_data = templates["FINAL"]
+        template_data = templates["bipedal_v2"]
         self.engine.load_template(template_data)
 
     def _init_ui(self):

@@ -13,12 +13,10 @@ import math
 
 SIMULATION_STEPS = 100
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "neat_config.txt")
-CHECKPOINT_PATH = os.path.join(os.path.dirname(__file__), "best_genome.pkl")
-HUMAN_CONFIG = os.path.join(os.path.dirname(__file__), "human.json")
-ANGLE_RATE = 0.6
+CHECKPOINT_PATH = os.path.join(os.path.dirname(__file__), "best_genome_v0.pkl")
 
-NUM_INPUTS = 24
-NUM_OUTPUTS = 11
+NUM_INPUTS = 14
+NUM_OUTPUTS = 4
 
 def check_key():
     if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
@@ -37,23 +35,21 @@ def simulation_step(human, activations):
 
 def eval_genome(genome, config):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
-    human = Human(headless=True, config_file=HUMAN_CONFIG)
+    human = Human(headless=True)
     human.start()
 
-    torso = human.engine.boxes[1]
+    # bipedal_v2: torso is box index 4
+    TORSO_IDX = 4
+    torso = human.engine.boxes[TORSO_IDX]
     prev_x = torso.body.position.x
-    prev_inputs=[]
     fitness = 0.0
     effort_penalty = 0.0
 
     for _ in range(SIMULATION_STEPS):
         inputs, activations = compute_activations(net, human)
-        # delta = 0.0
-        # for i in range(len(inputs)):
-        #     if prev_inputs:
-        #         delta
-        left_foot_contact = inputs[16]
-        right_foot_contact = inputs[18]
+        # Foot contacts are at indices 12 and 13 in the input vector
+        left_foot_contact = inputs[12]
+        right_foot_contact = inputs[13]
 
         simulation_step(human, activations)
 
@@ -69,12 +65,12 @@ def eval_genome(genome, config):
 
         if y <= 480:
             fitness += 200.0
-            # fitness += dx * 100.0
 
-            if -0.25 <= torso_angle <= 0.25:
+            normalized_angle = math.atan2(math.sin(torso_angle), math.cos(torso_angle))
+            if -0.25 <= normalized_angle <= 0.25:
                 fitness += 100.0
             else:
-                fitness -= 10000.0
+                fitness -= 100.0
 
             if left_foot_contact > 0.0 and right_foot_contact > 0.0:
                 fitness += 5.0
@@ -95,7 +91,7 @@ def run_best_with_ui(genome, config):
     pygame.init()
     pygame.font.init()
     net = neat.nn.FeedForwardNetwork.create(genome, config)
-    human = Human(headless=False, config_file=HUMAN_CONFIG) #change nigga's energy system
+    human = Human(headless=False)
     human.start()
     initial_x = human.get_center_of_mass()[0]
     score_font = pygame.font.SysFont("SF Mono", 24, bold=True)
