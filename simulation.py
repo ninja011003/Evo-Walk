@@ -709,9 +709,9 @@ class Rod:
                 obj2, anchor2, obj1, self.length
             )
         elif is_box1 and is_box2:
-            self.constraint = Contraint(obj1.body, obj2.body, self.length)
+            self.constraint = Contraint(obj1.body, obj2.body, length=self.length)
         else:
-            self.constraint = Contraint(obj1.body, obj2.body, self.length)
+            self.constraint = Contraint(obj1.body, obj2.body, length=self.length)
 
         self.name = f"Rod_{self.id}"
 
