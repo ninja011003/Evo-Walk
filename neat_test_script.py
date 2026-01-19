@@ -42,12 +42,16 @@ def eval_genome(genome, config):
 
     torso = human.engine.boxes[1]
     prev_x = torso.body.position.x
-
+    prev_inputs=[]
     fitness = 0.0
     effort_penalty = 0.0
 
     for _ in range(SIMULATION_STEPS):
         inputs, activations = compute_activations(net, human)
+        # delta = 0.0
+        # for i in range(len(inputs)):
+        #     if prev_inputs:
+        #         delta
         left_foot_contact = inputs[16]
         right_foot_contact = inputs[18]
 
@@ -63,12 +67,12 @@ def eval_genome(genome, config):
         dx = curr_x - prev_x
         prev_x = curr_x
 
-        if y <= 550:
-            fitness += 2.0
-            fitness += dx * 100.0
+        if y <= 480:
+            fitness += 200.0
+            # fitness += dx * 100.0
 
             if -0.25 <= torso_angle <= 0.25:
-                fitness += 10000.0
+                fitness += 100.0
             else:
                 fitness -= 10000.0
 
@@ -91,7 +95,7 @@ def run_best_with_ui(genome, config):
     pygame.init()
     pygame.font.init()
     net = neat.nn.FeedForwardNetwork.create(genome, config)
-    human = Human(headless=False, config_file=HUMAN_CONFIG)
+    human = Human(headless=False, config_file=HUMAN_CONFIG) #change nigga's energy system
     human.start()
     initial_x = human.get_center_of_mass()[0]
     score_font = pygame.font.SysFont("SF Mono", 24, bold=True)
