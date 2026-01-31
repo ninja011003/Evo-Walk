@@ -3207,5 +3207,107 @@
         "max_torque": 50000000000
       }
     ]
+  },
+  "4p": {
+    "bobs": [
+      {
+        "x": 322,
+        "y": 221,
+        "pinned": true,
+        "radius": 10,
+        "mass": 0
+      },
+      {
+        "x": 340,
+        "y": 222,
+        "pinned": true,
+        "radius": 10,
+        "mass": 0
+      },
+      {
+        "x": 362,
+        "y": 223,
+        "pinned": true,
+        "radius": 10,
+        "mass": 0
+      },
+      {
+        "x": 385,
+        "y": 223,
+        "pinned": true,
+        "radius": 10,
+        "mass": 0
+      },
+      {
+        "x": 320,
+        "y": 342,
+        "pinned": false,
+        "radius": 10,
+        "mass": 1
+      },
+      {
+        "x": 339,
+        "y": 342,
+        "pinned": false,
+        "radius": 10,
+        "mass": 1
+      },
+      {
+        "x": 359,
+        "y": 342,
+        "pinned": false,
+        "radius": 10,
+        "mass": 1
+      },
+      {
+        "x": 379,
+        "y": 342,
+        "pinned": false,
+        "radius": 10,
+        "mass": 1
+      }
+    ],
+    "boxes": [],
+    "rods": [
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 0,
+        "bob2_type": "bob",
+        "bob2_idx": 4,
+        "anchor1": null,
+        "anchor2": null,
+        "length": 121.01652779682617
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 1,
+        "bob2_type": "bob",
+        "bob2_idx": 5,
+        "anchor1": null,
+        "anchor2": null,
+        "length": 120.00416659433121
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 2,
+        "bob2_type": "bob",
+        "bob2_idx": 6,
+        "anchor1": null,
+        "anchor2": null,
+        "length": 119.03780911962383
+      },
+      {
+        "bob1_type": "bob",
+        "bob1_idx": 3,
+        "bob2_type": "bob",
+        "bob2_idx": 7,
+        "anchor1": null,
+        "anchor2": null,
+        "length": 119.15116449284078
+      }
+    ],
+    "actuators": [],
+    "joints": [],
+    "motors": []
   }
 }

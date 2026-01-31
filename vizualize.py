@@ -1554,11 +1554,9 @@ class SimulationUI:
                     scale = FORCE_MAGNITUDE * (length / 100)
                     force_x = (dx / length) * scale
                     force_y = (dy / length) * scale
-                    from simulation import Vector
-
-                    self.force_target.body.apply_point_force(
-                        Vector(force_x, force_y),
-                        Vector(self.force_start[0], self.force_start[1]),
+                    self.force_target.apply_point_force(
+                        {'x': force_x, 'y': force_y},
+                        {'x': self.force_start[0], 'y': self.force_start[1]},
                     )
             self.force_start = None
             self.force_target = None
@@ -1706,10 +1704,10 @@ class SimulationUI:
                 anchor_pos = self.connecting_body.get_world_anchor(
                     self.connecting_anchor
                 )
-                x1, y1 = int(anchor_pos.x) - cam, int(anchor_pos.y)
+                x1, y1 = int(anchor_pos['x']) - cam, int(anchor_pos['y'])
             else:
-                x1 = int(self.connecting_body.body.position.x) - cam
-                y1 = int(self.connecting_body.body.position.y)
+                x1 = int(self.connecting_body.body['position']['x']) - cam
+                y1 = int(self.connecting_body.body['position']['y'])
             pygame.draw.line(surface, (80, 80, 100), (x1, y1), (mx, my), 2)
 
         mx, my = pygame.mouse.get_pos()
@@ -1725,11 +1723,11 @@ class SimulationUI:
         )
 
         for box in self.engine.boxes:
-            cx = box.body.position.x - cam
-            cy = box.body.position.y
+            cx = box.body['position']['x'] - cam
+            cy = box.body['position']['y']
             if cx != cx or cy != cy:
                 continue
-            angle = box.body.orientation
+            angle = box.body['angle']
             hw = box.width / 2
             hh = box.height / 2
 
@@ -1819,8 +1817,8 @@ class SimulationUI:
                         )
 
         for bob in self.engine.bobs:
-            x = int(bob.body.position.x) - cam
-            y = int(bob.body.position.y)
+            x = int(bob.body['position']['x']) - cam
+            y = int(bob.body['position']['y'])
 
             is_selected = self.debug_panel.selected_object == bob
 
@@ -1847,8 +1845,8 @@ class SimulationUI:
                 pygame.draw.circle(surface, (255, 255, 255), (x, y), 4)
 
         for joint in self.engine.joints:
-            x = int(joint.joint.position.x) - cam
-            y = int(joint.joint.position.y)
+            x = int(joint.body['position']['x']) - cam
+            y = int(joint.body['position']['y'])
 
             is_selected = self.debug_panel.selected_object == joint
 
@@ -1875,18 +1873,18 @@ class SimulationUI:
             for body, anchor, constraint in joint.connected_bodies:
                 if isinstance(body, Box) and anchor:
                     anchor_pos = body.get_world_anchor(anchor)
-                    ax, ay = int(anchor_pos.x) - cam, int(anchor_pos.y)
+                    ax, ay = int(anchor_pos['x']) - cam, int(anchor_pos['y'])
                 else:
-                    ax, ay = int(body.body.position.x) - cam, int(body.body.position.y)
+                    ax, ay = int(body.body['position']['x']) - cam, int(body.body['position']['y'])
                 pygame.draw.line(surface, JOINT_COLOR, (x, y), (ax, ay), 2)
 
         for motor in self.engine.motors:
-            jx = int(motor.joint_wrapper.joint.position.x) - cam
-            jy = int(motor.joint_wrapper.joint.position.y)
-            b1x = int(motor.body1.body.position.x) - cam
-            b1y = int(motor.body1.body.position.y)
-            b2x = int(motor.body2.body.position.x) - cam
-            b2y = int(motor.body2.body.position.y)
+            jx = int(motor.joint_wrapper.body['position']['x']) - cam
+            jy = int(motor.joint_wrapper.body['position']['y'])
+            b1x = int(motor.body1.body['position']['x']) - cam
+            b1y = int(motor.body1.body['position']['y'])
+            b2x = int(motor.body2.body['position']['x']) - cam
+            b2y = int(motor.body2.body['position']['y'])
 
             is_selected = self.debug_panel.selected_object == motor
 
@@ -1904,11 +1902,11 @@ class SimulationUI:
 
         if self.motor_joint:
             mx, my = pygame.mouse.get_pos()
-            jx = int(self.motor_joint.joint.position.x) - cam
-            jy = int(self.motor_joint.joint.position.y)
+            jx = int(self.motor_joint.body['position']['x']) - cam
+            jy = int(self.motor_joint.body['position']['y'])
             if self.motor_body1:
-                b1x = int(self.motor_body1.body.position.x) - cam
-                b1y = int(self.motor_body1.body.position.y)
+                b1x = int(self.motor_body1.body['position']['x']) - cam
+                b1y = int(self.motor_body1.body['position']['y'])
                 pygame.draw.line(surface, MOTOR_COLOR, (jx, jy), (b1x, b1y), 2)
                 pygame.draw.line(surface, (180, 80, 140), (jx, jy), (mx, my), 2)
             else:
@@ -1916,8 +1914,8 @@ class SimulationUI:
 
         if self.connecting_joint:
             mx, my = pygame.mouse.get_pos()
-            jx = int(self.connecting_joint.joint.position.x) - cam
-            jy = int(self.connecting_joint.joint.position.y)
+            jx = int(self.connecting_joint.body['position']['x']) - cam
+            jy = int(self.connecting_joint.body['position']['y'])
             pygame.draw.line(surface, (80, 200, 150), (jx, jy), (mx, my), 2)
 
         if self.mode == "force" and self.force_start and self.force_target:
