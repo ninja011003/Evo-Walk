@@ -17,7 +17,6 @@ _base_delta = 1000 / 60
 
 
 def pre_solve_position(pairs: List[Dict]) -> None:
-    """Prepare pairs for position solving by counting total contacts on each body."""
     for pair in pairs:
         if not pair.get('is_active', False):
             continue
@@ -34,7 +33,6 @@ def pre_solve_position(pairs: List[Dict]) -> None:
 
 
 def solve_position(pairs: List[Dict], delta: float, damping: float = 1) -> None:
-    """Find a solution for pair positions."""
     position_dampen = _position_dampen * damping
     slop_dampen = Common.clamp(delta / _base_delta, 0, 1)
     
@@ -95,7 +93,6 @@ def solve_position(pairs: List[Dict], delta: float, damping: float = 1) -> None:
 
 
 def post_solve_position(bodies: List[Dict]) -> None:
-    """Apply position resolution."""
     for body in bodies:
         if 'position_impulse' not in body:
             body['position_impulse'] = {'x': 0, 'y': 0}
@@ -130,7 +127,6 @@ def post_solve_position(bodies: List[Dict]) -> None:
 
 
 def pre_solve_velocity(pairs: List[Dict]) -> None:
-    """Prepare pairs for velocity solving (warm start)."""
     for pair in pairs:
         if not pair.get('is_active', False) or pair.get('is_sensor', False):
             continue
@@ -174,7 +170,6 @@ def pre_solve_velocity(pairs: List[Dict]) -> None:
 
 
 def solve_velocity(pairs: List[Dict], delta: float) -> None:
-    """Find a solution for pair velocities."""
     time_scale = delta / _base_delta
     time_scale_squared = time_scale * time_scale
     time_scale_cubed = time_scale_squared * time_scale

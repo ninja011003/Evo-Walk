@@ -4,7 +4,6 @@ from ..core import common as Common
 
 
 def create(options: Optional[Dict] = None) -> Dict:
-    """Creates a new composite."""
     options = options or {}
     
     defaults = {
@@ -28,9 +27,6 @@ def create(options: Optional[Dict] = None) -> Dict:
 
 
 def set_modified(composite: Dict, is_modified: bool, update_parents: bool = False, update_children: bool = False) -> None:
-    """
-    Sets the modified flag on the composite and optionally up the tree or down.
-    """
     composite['is_modified'] = is_modified
     
     # Invalidate cache
@@ -48,10 +44,6 @@ def set_modified(composite: Dict, is_modified: bool, update_parents: bool = Fals
 
 
 def add(composite: Dict, obj: Any, deep: bool = False) -> Dict:
-    """
-    Adds an object (body, constraint, or composite) to the given composite.
-    Returns the composite for chaining.
-    """
     # Handle lists
     if isinstance(obj, list):
         for item in obj:
@@ -75,10 +67,6 @@ def add(composite: Dict, obj: Any, deep: bool = False) -> Dict:
 
 
 def remove(composite: Dict, obj: Any, deep: bool = False) -> Dict:
-    """
-    Removes an object from the given composite.
-    Returns the composite for chaining.
-    """
     # Handle lists
     if isinstance(obj, list):
         for item in obj:
@@ -98,7 +86,6 @@ def remove(composite: Dict, obj: Any, deep: bool = False) -> Dict:
 
 
 def add_body(composite: Dict, body: Dict) -> Dict:
-    """Adds a body to the given composite."""
     composite['bodies'].append(body)
     # Note: body['parent'] refers to parent body for compound bodies, not composite container
     # We track the composite via a separate property
@@ -108,7 +95,6 @@ def add_body(composite: Dict, body: Dict) -> Dict:
 
 
 def remove_body(composite: Dict, body: Dict, deep: bool = False) -> Dict:
-    """Removes a body from the given composite."""
     pos = -1
     try:
         pos = composite['bodies'].index(body)
@@ -126,14 +112,12 @@ def remove_body(composite: Dict, body: Dict, deep: bool = False) -> Dict:
 
 
 def remove_body_at(composite: Dict, position: int) -> Dict:
-    """Removes a body at a given position from the composite."""
     composite['bodies'].pop(position)
     set_modified(composite, True, update_parents=True, update_children=False)
     return composite
 
 
 def add_constraint(composite: Dict, constraint: Dict) -> Dict:
-    """Adds a constraint to the given composite."""
     composite['constraints'].append(constraint)
     constraint['parent'] = composite
     set_modified(composite, True, update_parents=True, update_children=False)
@@ -141,7 +125,6 @@ def add_constraint(composite: Dict, constraint: Dict) -> Dict:
 
 
 def remove_constraint(composite: Dict, constraint: Dict, deep: bool = False) -> Dict:
-    """Removes a constraint from the given composite."""
     pos = -1
     try:
         pos = composite['constraints'].index(constraint)
@@ -159,14 +142,12 @@ def remove_constraint(composite: Dict, constraint: Dict, deep: bool = False) -> 
 
 
 def remove_constraint_at(composite: Dict, position: int) -> Dict:
-    """Removes a constraint at a given position from the composite."""
     composite['constraints'].pop(position)
     set_modified(composite, True, update_parents=True, update_children=False)
     return composite
 
 
 def add_composite(composite: Dict, child: Dict) -> Dict:
-    """Adds a composite to the given composite."""
     composite['composites'].append(child)
     child['parent'] = composite
     set_modified(composite, True, update_parents=True, update_children=False)
@@ -174,7 +155,6 @@ def add_composite(composite: Dict, child: Dict) -> Dict:
 
 
 def remove_composite(composite: Dict, child: Dict, deep: bool = False) -> Dict:
-    """Removes a composite from the given composite."""
     pos = -1
     try:
         pos = composite['composites'].index(child)
@@ -192,14 +172,12 @@ def remove_composite(composite: Dict, child: Dict, deep: bool = False) -> Dict:
 
 
 def remove_composite_at(composite: Dict, position: int) -> Dict:
-    """Removes a composite at a given position from the composite."""
     composite['composites'].pop(position)
     set_modified(composite, True, update_parents=True, update_children=False)
     return composite
 
 
 def all_bodies(composite: Dict) -> List[Dict]:
-    """Returns all bodies (recursively) in the composite."""
     if composite['cache']['all_bodies']:
         return composite['cache']['all_bodies']
     
@@ -213,7 +191,6 @@ def all_bodies(composite: Dict) -> List[Dict]:
 
 
 def all_constraints(composite: Dict) -> List[Dict]:
-    """Returns all constraints (recursively) in the composite."""
     if composite['cache']['all_constraints']:
         return composite['cache']['all_constraints']
     
@@ -227,7 +204,6 @@ def all_constraints(composite: Dict) -> List[Dict]:
 
 
 def all_composites(composite: Dict) -> List[Dict]:
-    """Returns all composites (recursively) in the composite."""
     if composite['cache']['all_composites']:
         return composite['cache']['all_composites']
     
@@ -241,7 +217,6 @@ def all_composites(composite: Dict) -> List[Dict]:
 
 
 def get(composite: Dict, id_val: int, obj_type: str) -> Optional[Dict]:
-    """Gets an object by id and type."""
     if obj_type == 'body':
         objects = all_bodies(composite)
     elif obj_type == 'constraint':
@@ -262,9 +237,6 @@ def get(composite: Dict, id_val: int, obj_type: str) -> Optional[Dict]:
 
 
 def move(composite: Dict, objects: List[Dict], target_composite: Dict) -> Dict:
-    """
-    Moves objects from one composite to another.
-    """
     for obj in objects:
         remove(composite, obj, deep=True)
         add(target_composite, obj)
@@ -273,9 +245,6 @@ def move(composite: Dict, objects: List[Dict], target_composite: Dict) -> Dict:
 
 
 def rebase(composite: Dict) -> Dict:
-    """
-    Resets the IDs of all objects in the composite.
-    """
     for body in all_bodies(composite):
         body['id'] = Common.next_id()
     
@@ -289,7 +258,6 @@ def rebase(composite: Dict) -> Dict:
 
 
 def translate(composite: Dict, translation: Dict, recursive: bool = True) -> None:
-    """Translates all bodies in the composite by the given vector."""
     from . import body as Body
     
     bodies = all_bodies(composite) if recursive else composite['bodies']
@@ -299,7 +267,6 @@ def translate(composite: Dict, translation: Dict, recursive: bool = True) -> Non
 
 
 def rotate(composite: Dict, rotation: float, point: Dict, recursive: bool = True) -> None:
-    """Rotates all bodies in the composite about the given point."""
     from . import body as Body
     import math
     
@@ -321,7 +288,6 @@ def rotate(composite: Dict, rotation: float, point: Dict, recursive: bool = True
 
 
 def scale(composite: Dict, scale_x: float, scale_y: float, point: Dict, recursive: bool = True) -> None:
-    """Scales all bodies in the composite from the given point."""
     from . import body as Body
     
     bodies = all_bodies(composite) if recursive else composite['bodies']
@@ -339,7 +305,6 @@ def scale(composite: Dict, scale_x: float, scale_y: float, point: Dict, recursiv
 
 
 def bounds(composite: Dict) -> Dict:
-    """Returns the bounds of all bodies in the composite."""
     bodies = all_bodies(composite)
     vertices = []
     

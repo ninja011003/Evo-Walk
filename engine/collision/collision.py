@@ -18,7 +18,6 @@ _overlap_ba = {
 
 
 def create(body_a: Dict, body_b: Dict) -> Dict:
-    """Creates a new collision record."""
     return {
         'pair': None,
         'collided': False,
@@ -36,18 +35,17 @@ def create(body_a: Dict, body_b: Dict) -> Dict:
 
 
 def collides(body_a: Dict, body_b: Dict, pairs: Optional[Dict] = None) -> Optional[Dict]:
-    """
-    Detect collision between two bodies using SAT.
-    Returns a collision record if detected, otherwise None.
-    """
+    # Small collision tolerance for detecting nearly-touching bodies (important for Newton's cradle)
+    collision_slop = 0.5
+    
     _overlap_axes(_overlap_ab, body_a['vertices'], body_b['vertices'], body_a['axes'])
     
-    if _overlap_ab['overlap'] <= 0:
+    if _overlap_ab['overlap'] < -collision_slop:
         return None
     
     _overlap_axes(_overlap_ba, body_b['vertices'], body_a['vertices'], body_b['axes'])
     
-    if _overlap_ba['overlap'] <= 0:
+    if _overlap_ba['overlap'] < -collision_slop:
         return None
     
     # Reuse collision records for efficiency
@@ -138,7 +136,6 @@ def collides(body_a: Dict, body_b: Dict, pairs: Optional[Dict] = None) -> Option
 
 
 def _overlap_axes(result: Dict, vertices_a: List[Dict], vertices_b: List[Dict], axes: List[Dict]) -> None:
-    """Find the overlap between two sets of vertices along given axes."""
     vertices_a_length = len(vertices_a)
     vertices_b_length = len(vertices_b)
     vertices_a_x = vertices_a[0]['x']
@@ -189,9 +186,6 @@ def _overlap_axes(result: Dict, vertices_a: List[Dict], vertices_b: List[Dict], 
 
 
 def _find_supports(body_a: Dict, body_b: Dict, normal: Dict, direction: int) -> List[Dict]:
-    """
-    Finds supporting vertices given two bodies along a given direction using hill-climbing.
-    """
     vertices = body_b['vertices']
     vertices_length = len(vertices)
     body_a_position_x = body_a['position']['x']
@@ -229,7 +223,6 @@ def _find_supports(body_a: Dict, body_b: Dict, normal: Dict, direction: int) -> 
 
 
 def _pair_id(body_a: Dict, body_b: Dict) -> str:
-    """Generate a unique pair ID from two bodies."""
     if body_a['id'] < body_b['id']:
         return f"A{body_a['id']}B{body_b['id']}"
     else:

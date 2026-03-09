@@ -4,7 +4,6 @@ from ..core import common as Common
 
 
 def create(options: Optional[Dict] = None) -> Dict:
-    """Creates a new pairs structure."""
     options = options or {}
     
     return {
@@ -17,7 +16,6 @@ def create(options: Optional[Dict] = None) -> Dict:
 
 
 def update(pairs: Dict, collisions: List[Dict], timestamp: float) -> None:
-    """Updates pairs given a list of collisions."""
     pairs_table = pairs['table']
     pairs_list = pairs['list']
     collision_start = pairs['collision_start']
@@ -101,7 +99,6 @@ def update(pairs: Dict, collisions: List[Dict], timestamp: float) -> None:
 
 
 def _create_pair(collision: Dict, timestamp: float) -> Dict:
-    """Creates a new pair from a collision."""
     body_a = collision['body_a']
     body_b = collision['body_b']
     parent_a = collision['parent_a']
@@ -140,7 +137,6 @@ def _create_pair(collision: Dict, timestamp: float) -> Dict:
 
 
 def set_active(pairs: Dict, pair: Dict, is_active: bool, timestamp: float) -> None:
-    """Sets a pair as active or inactive."""
     if is_active:
         pair['is_active'] = True
         pair['time_updated'] = timestamp
@@ -153,7 +149,6 @@ def set_active(pairs: Dict, pair: Dict, is_active: bool, timestamp: float) -> No
 
 
 def id_from_bodies(body_a: Dict, body_b: Dict) -> str:
-    """Returns a unique pair id given two bodies."""
     if body_a['id'] < body_b['id']:
         return f"A{body_a['id']}B{body_b['id']}"
     else:
@@ -161,7 +156,6 @@ def id_from_bodies(body_a: Dict, body_b: Dict) -> str:
 
 
 def clear(pairs: Dict) -> Dict:
-    """Clears all pairs."""
     pairs['table'].clear()
     pairs['list'].clear()
     pairs['collision_start'].clear()

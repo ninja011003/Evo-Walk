@@ -2,7 +2,6 @@ from typing import List, Dict, Any, Optional
 
 
 def create(vertices: Optional[List[Dict]] = None) -> Dict:
-    """Creates a new axis-aligned bounding box (AABB) given a set of vertices."""
     bounds = {
         'min': {'x': 0, 'y': 0},
         'max': {'x': 0, 'y': 0}
@@ -15,7 +14,6 @@ def create(vertices: Optional[List[Dict]] = None) -> Dict:
 
 
 def update(bounds: Dict, vertices: List[Dict], velocity: Optional[Dict] = None) -> None:
-    """Updates bounds using the given vertices and extends the bounds given a velocity."""
     bounds['min']['x'] = float('inf')
     bounds['max']['x'] = float('-inf')
     bounds['min']['y'] = float('inf')
@@ -44,7 +42,6 @@ def update(bounds: Dict, vertices: List[Dict], velocity: Optional[Dict] = None) 
 
 
 def contains(bounds: Dict, point: Dict) -> bool:
-    """Returns True if the bounds contains the given point."""
     return (point['x'] >= bounds['min']['x'] and 
             point['x'] <= bounds['max']['x'] and
             point['y'] >= bounds['min']['y'] and 
@@ -52,7 +49,6 @@ def contains(bounds: Dict, point: Dict) -> bool:
 
 
 def overlaps(bounds_a: Dict, bounds_b: Dict) -> bool:
-    """Returns True if the two bounds intersect."""
     return (bounds_a['min']['x'] <= bounds_b['max']['x'] and
             bounds_a['max']['x'] >= bounds_b['min']['x'] and
             bounds_a['max']['y'] >= bounds_b['min']['y'] and
@@ -60,7 +56,6 @@ def overlaps(bounds_a: Dict, bounds_b: Dict) -> bool:
 
 
 def translate(bounds: Dict, vector: Dict) -> None:
-    """Translates the bounds by the given vector."""
     bounds['min']['x'] += vector['x']
     bounds['max']['x'] += vector['x']
     bounds['min']['y'] += vector['y']
@@ -68,7 +63,6 @@ def translate(bounds: Dict, vector: Dict) -> None:
 
 
 def shift(bounds: Dict, position: Dict) -> None:
-    """Shifts the bounds to the given position."""
     delta_x = bounds['max']['x'] - bounds['min']['x']
     delta_y = bounds['max']['y'] - bounds['min']['y']
     

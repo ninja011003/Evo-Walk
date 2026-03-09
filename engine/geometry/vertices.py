@@ -4,11 +4,6 @@ from . import vector as Vector
 
 
 def create(points: List[Dict], body: Any = None) -> List[Dict]:
-    """
-    Creates a new set of Body compatible vertices.
-    The points argument accepts an array of vectors orientated around the origin (0, 0).
-    Vertices must be specified in clockwise order.
-    """
     vertices = []
     for i, point in enumerate(points):
         vertex = {
@@ -23,10 +18,6 @@ def create(points: List[Dict], body: Any = None) -> List[Dict]:
 
 
 def from_path(path: str, body: Any = None) -> List[Dict]:
-    """
-    Parses a string containing ordered x y pairs separated by spaces,
-    into a vertices array.
-    """
     import re
     pattern = r'L?\s*([-\d.e]+)[\s,]*([-\d.e]+)'
     points = []
@@ -36,7 +27,6 @@ def from_path(path: str, body: Any = None) -> List[Dict]:
 
 
 def centre(vertices: List[Dict]) -> Dict:
-    """Returns the centre (centroid) of the set of vertices."""
     area_val = area(vertices, signed=True)
     centre_pt = {'x': 0, 'y': 0}
     
@@ -54,7 +44,6 @@ center = centre
 
 
 def mean(vertices: List[Dict]) -> Dict:
-    """Returns the average (mean) of the set of vertices."""
     average = {'x': 0, 'y': 0}
     for vertex in vertices:
         average['x'] += vertex['x']
@@ -63,7 +52,6 @@ def mean(vertices: List[Dict]) -> Dict:
 
 
 def area(vertices: List[Dict], signed: bool = False) -> float:
-    """Returns the area of the set of vertices."""
     area_val = 0
     j = len(vertices) - 1
     
@@ -77,10 +65,6 @@ def area(vertices: List[Dict], signed: bool = False) -> float:
 
 
 def inertia(vertices: List[Dict], mass: float) -> float:
-    """
-    Returns the moment of inertia (second moment of area) of the set of vertices
-    given the total mass.
-    """
     numerator = 0
     denominator = 0
     v = vertices
@@ -97,7 +81,6 @@ def inertia(vertices: List[Dict], mass: float) -> float:
 
 
 def translate(vertices: List[Dict], vector: Dict, scalar: float = 1) -> List[Dict]:
-    """Translates the set of vertices in-place."""
     translate_x = vector['x'] * scalar
     translate_y = vector['y'] * scalar
     
@@ -109,7 +92,6 @@ def translate(vertices: List[Dict], vector: Dict, scalar: float = 1) -> List[Dic
 
 
 def rotate(vertices: List[Dict], angle: float, point: Dict) -> List[Dict]:
-    """Rotates the set of vertices in-place."""
     if angle == 0:
         return vertices
     
@@ -128,7 +110,6 @@ def rotate(vertices: List[Dict], angle: float, point: Dict) -> List[Dict]:
 
 
 def contains(vertices: List[Dict], point: Dict) -> bool:
-    """Returns True if the point is inside the set of vertices."""
     point_x = point['x']
     point_y = point['y']
     vertex = vertices[-1]
@@ -143,7 +124,6 @@ def contains(vertices: List[Dict], point: Dict) -> bool:
 
 
 def scale(vertices: List[Dict], scale_x: float, scale_y: float, point: Optional[Dict] = None) -> List[Dict]:
-    """Scales the vertices from a point (default is centre) in-place."""
     if scale_x == 1 and scale_y == 1:
         return vertices
     
@@ -160,10 +140,6 @@ def scale(vertices: List[Dict], scale_x: float, scale_y: float, point: Optional[
 
 def chamfer(vertices: List[Dict], radius: Any = None, quality: int = -1, 
             quality_min: int = 2, quality_max: int = 14) -> List[Dict]:
-    """
-    Chamfers a set of vertices by giving them rounded corners.
-    Returns a new set of vertices.
-    """
     if isinstance(radius, (int, float)):
         radius = [radius]
     elif radius is None:
@@ -215,17 +191,12 @@ def chamfer(vertices: List[Dict], radius: Any = None, quality: int = -1,
 
 
 def clockwise_sort(vertices: List[Dict]) -> List[Dict]:
-    """Sorts the input vertices into clockwise order in place."""
     centre_pt = mean(vertices)
     vertices.sort(key=lambda v: Vector.angle(centre_pt, v))
     return vertices
 
 
 def is_convex(vertices: List[Dict]) -> Optional[bool]:
-    """
-    Returns True if the vertices form a convex shape (vertices must be in clockwise order).
-    Returns None if not computable.
-    """
     flag = 0
     n = len(vertices)
     
@@ -252,7 +223,6 @@ def is_convex(vertices: List[Dict]) -> Optional[bool]:
 
 
 def hull(vertices: List[Dict]) -> List[Dict]:
-    """Returns the convex hull of the input vertices as a new array of points."""
     upper = []
     lower = []
     

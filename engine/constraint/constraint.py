@@ -16,10 +16,6 @@ _base_delta = 1000 / 60
 
 
 def create(options: Optional[Dict] = None) -> Dict:
-    """
-    Creates a new constraint.
-    To simulate a revolute constraint (pin joint), set length: 0 and a high stiffness (0.7+).
-    """
     options = options or {}
     constraint = dict(options)
     
@@ -74,7 +70,6 @@ def create(options: Optional[Dict] = None) -> Dict:
 
 
 def pre_solve_all(bodies: List[Dict]) -> None:
-    """Prepares for solving by constraint warming."""
     for body in bodies:
         if 'constraint_impulse' not in body:
             body['constraint_impulse'] = {'x': 0, 'y': 0, 'angle': 0}
@@ -89,7 +84,6 @@ def pre_solve_all(bodies: List[Dict]) -> None:
 
 
 def solve_all(constraints: List[Dict], delta: float) -> None:
-    """Solves all constraints in a list."""
     time_scale = Common.clamp(delta / _base_delta, 0, 1)
     
     # Solve fixed constraints first
@@ -114,7 +108,6 @@ def solve_all(constraints: List[Dict], delta: float) -> None:
 
 
 def solve(constraint: Dict, time_scale: float) -> None:
-    """Solves a distance constraint with Gauss-Siedel method."""
     body_a = constraint.get('body_a')
     body_b = constraint.get('body_b')
     point_a = constraint.get('point_a')
@@ -228,7 +221,6 @@ def solve(constraint: Dict, time_scale: float) -> None:
 
 
 def post_solve_all(bodies: List[Dict]) -> None:
-    """Performs body updates required after solving constraints."""
     for body in bodies:
         if 'constraint_impulse' not in body:
             body['constraint_impulse'] = {'x': 0, 'y': 0, 'angle': 0}
@@ -264,7 +256,6 @@ def post_solve_all(bodies: List[Dict]) -> None:
 
 
 def point_a_world(constraint: Dict) -> Dict:
-    """Returns the world-space position of constraint.point_a."""
     return {
         'x': (constraint['body_a']['position']['x'] if constraint.get('body_a') else 0) +
              (constraint['point_a']['x'] if constraint.get('point_a') else 0),
@@ -274,7 +265,6 @@ def point_a_world(constraint: Dict) -> Dict:
 
 
 def point_b_world(constraint: Dict) -> Dict:
-    """Returns the world-space position of constraint.point_b."""
     return {
         'x': (constraint['body_b']['position']['x'] if constraint.get('body_b') else 0) +
              (constraint['point_b']['x'] if constraint.get('point_b') else 0),
@@ -284,7 +274,6 @@ def point_b_world(constraint: Dict) -> Dict:
 
 
 def current_length(constraint: Dict) -> float:
-    """Returns the current length of the constraint."""
     point_a_x = (constraint['body_a']['position']['x'] if constraint.get('body_a') else 0) + \
                 (constraint['point_a']['x'] if constraint.get('point_a') else 0)
     point_a_y = (constraint['body_a']['position']['y'] if constraint.get('body_a') else 0) + \

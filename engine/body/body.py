@@ -18,11 +18,6 @@ _base_delta = 1000 / 60
 
 
 def create(options: Optional[Dict] = None) -> Dict:
-    """
-    Creates a new rigid body model.
-    All properties have default values, and many are pre-calculated automatically.
-    Vertices must be specified in clockwise order.
-    """
     options = options or {}
     
     defaults = {
@@ -95,10 +90,6 @@ def create(options: Optional[Dict] = None) -> Dict:
 
 
 def next_group(is_non_colliding: bool = False) -> int:
-    """
-    Returns the next unique group index for which bodies will collide.
-    If is_non_colliding is True, returns a group index for which bodies will NOT collide.
-    """
     global _next_colliding_group_id, _next_non_colliding_group_id
     
     if is_non_colliding:
@@ -112,14 +103,12 @@ def next_group(is_non_colliding: bool = False) -> int:
 
 
 def next_category() -> int:
-    """Returns the next unique category bitfield."""
     global _next_category
     _next_category = _next_category << 1
     return _next_category
 
 
 def _init_properties(body: Dict, options: Optional[Dict] = None) -> None:
-    """Initialises body properties."""
     options = options or {}
     
     # Init required properties (order is important)
@@ -157,9 +146,6 @@ def _init_properties(body: Dict, options: Optional[Dict] = None) -> None:
 
 
 def set_prop(body: Dict, settings: Any, value: Any = None) -> None:
-    """
-    Sets the property(s) on the body, using appropriate setter functions if they exist.
-    """
     if isinstance(settings, str):
         prop = settings
         settings = {prop: value}
@@ -199,7 +185,6 @@ def set_prop(body: Dict, settings: Any, value: Any = None) -> None:
 
 
 def set_static(body: Dict, is_static: bool) -> None:
-    """Sets the body as static, including mass and inertia to Infinity."""
     for part in body['parts']:
         if is_static:
             if not part['is_static']:
@@ -242,7 +227,6 @@ def set_static(body: Dict, is_static: bool) -> None:
 
 
 def set_mass(body: Dict, mass: float) -> None:
-    """Sets the mass of the body. Inverse mass, density and inertia are updated."""
     moment = body['inertia'] / (body['mass'] / 6) if body['mass'] != 0 else 0
     body['inertia'] = moment * (mass / 6)
     body['inverse_inertia'] = 1 / body['inertia'] if body['inertia'] != 0 else 0
@@ -253,22 +237,16 @@ def set_mass(body: Dict, mass: float) -> None:
 
 
 def set_density(body: Dict, density: float) -> None:
-    """Sets the density of the body. Mass and inertia are automatically updated."""
     set_mass(body, density * body['area'])
     body['density'] = density
 
 
 def set_inertia(body: Dict, inertia: float) -> None:
-    """Sets the moment of inertia of the body."""
     body['inertia'] = inertia
     body['inverse_inertia'] = 1 / body['inertia'] if body['inertia'] != 0 else 0
 
 
 def set_vertices(body: Dict, vertices: List[Dict]) -> None:
-    """
-    Sets the body's vertices and updates body properties accordingly.
-    Vertices will be automatically transformed to be around their centre of mass.
-    """
     # Change vertices
     if vertices and vertices[0].get('body') == body:
         body['vertices'] = vertices
@@ -293,10 +271,6 @@ def set_vertices(body: Dict, vertices: List[Dict]) -> None:
 
 
 def set_parts(body: Dict, parts: List[Dict], auto_hull: bool = True) -> None:
-    """
-    Sets the parts of the body.
-    Updates mass, inertia and centroid based on the parts geometry.
-    """
     # Add all the parts, ensuring first part is always the parent body
     parts = list(parts)
     body['parts'] = [body]
@@ -339,10 +313,6 @@ def set_parts(body: Dict, parts: List[Dict], auto_hull: bool = True) -> None:
 
 
 def set_centre(body: Dict, centre: Dict, relative: bool = False) -> None:
-    """
-    Sets the centre of mass of the body.
-    This is equal to moving position but not the vertices.
-    """
     if not relative:
         body['position_prev']['x'] = centre['x'] - (body['position']['x'] - body['position_prev']['x'])
         body['position_prev']['y'] = centre['y'] - (body['position']['y'] - body['position_prev']['y'])
@@ -356,7 +326,6 @@ def set_centre(body: Dict, centre: Dict, relative: bool = False) -> None:
 
 
 def set_position(body: Dict, position: Dict, update_velocity: bool = False) -> None:
-    """Sets the position of the body."""
     delta = Vector.sub(position, body['position'])
     
     if update_velocity:
@@ -377,7 +346,6 @@ def set_position(body: Dict, position: Dict, update_velocity: bool = False) -> N
 
 
 def set_angle(body: Dict, angle: float, update_velocity: bool = False) -> None:
-    """Sets the angle of the body."""
     delta = angle - body['angle']
     
     if update_velocity:
@@ -397,7 +365,6 @@ def set_angle(body: Dict, angle: float, update_velocity: bool = False) -> None:
 
 
 def set_velocity(body: Dict, velocity: Dict) -> None:
-    """Sets the current linear velocity of the body."""
     time_scale = body['delta_time'] / _base_delta
     body['position_prev']['x'] = body['position']['x'] - velocity['x'] * time_scale
     body['position_prev']['y'] = body['position']['y'] - velocity['y'] * time_scale
@@ -407,7 +374,6 @@ def set_velocity(body: Dict, velocity: Dict) -> None:
 
 
 def get_velocity(body: Dict) -> Dict:
-    """Gets the current linear velocity of the body."""
     time_scale = _base_delta / body['delta_time']
     return {
         'x': (body['position']['x'] - body['position_prev']['x']) * time_scale,
@@ -416,17 +382,14 @@ def get_velocity(body: Dict) -> Dict:
 
 
 def get_speed(body: Dict) -> float:
-    """Gets the current linear speed of the body."""
     return Vector.magnitude(get_velocity(body))
 
 
 def set_speed(body: Dict, speed: float) -> None:
-    """Sets the current linear speed of the body."""
     set_velocity(body, Vector.mult(Vector.normalise(get_velocity(body)), speed))
 
 
 def set_angular_velocity(body: Dict, velocity: float) -> None:
-    """Sets the current rotational velocity of the body."""
     time_scale = body['delta_time'] / _base_delta
     body['angle_prev'] = body['angle'] - velocity * time_scale
     body['angular_velocity'] = (body['angle'] - body['angle_prev']) / time_scale
@@ -434,27 +397,22 @@ def set_angular_velocity(body: Dict, velocity: float) -> None:
 
 
 def get_angular_velocity(body: Dict) -> float:
-    """Gets the current rotational velocity of the body."""
     return (body['angle'] - body['angle_prev']) * _base_delta / body['delta_time']
 
 
 def get_angular_speed(body: Dict) -> float:
-    """Gets the current rotational speed of the body."""
     return abs(get_angular_velocity(body))
 
 
 def set_angular_speed(body: Dict, speed: float) -> None:
-    """Sets the current rotational speed of the body."""
     set_angular_velocity(body, Common.sign(get_angular_velocity(body)) * speed)
 
 
 def translate(body: Dict, translation: Dict, update_velocity: bool = False) -> None:
-    """Moves a body by a given vector relative to its current position."""
     set_position(body, Vector.add(body['position'], translation), update_velocity)
 
 
 def rotate(body: Dict, rotation: float, point: Optional[Dict] = None, update_velocity: bool = False) -> None:
-    """Rotates a body by a given angle relative to its current angle."""
     if point is None:
         set_angle(body, body['angle'] + rotation, update_velocity)
     else:
@@ -472,7 +430,6 @@ def rotate(body: Dict, rotation: float, point: Optional[Dict] = None, update_vel
 
 
 def scale(body: Dict, scale_x: float, scale_y: float, point: Optional[Dict] = None) -> None:
-    """Scales the body, including updating physical properties."""
     total_area = 0
     total_inertia = 0
     
@@ -521,10 +478,6 @@ def scale(body: Dict, scale_x: float, scale_y: float, point: Optional[Dict] = No
 
 
 def update(body: Dict, delta_time: Optional[float] = None) -> None:
-    """
-    Performs an update by integrating the equations of motion on the body.
-    Uses Verlet integration for stability.
-    """
     delta_time = (delta_time if delta_time is not None else (1000 / 60)) * body['time_scale']
     
     delta_time_squared = delta_time * delta_time
@@ -569,10 +522,6 @@ def update(body: Dict, delta_time: Optional[float] = None) -> None:
 
 
 def update_velocities(body: Dict) -> None:
-    """
-    Updates velocity, speed, angular_velocity and angular_speed properties
-    which are normalised in relation to _base_delta.
-    """
     time_scale = _base_delta / body['delta_time']
     
     body['velocity']['x'] = (body['position']['x'] - body['position_prev']['x']) * time_scale
@@ -584,9 +533,6 @@ def update_velocities(body: Dict) -> None:
 
 
 def apply_force(body: Dict, position: Dict, force: Dict) -> None:
-    """
-    Applies the force to the body from the force origin position in world-space.
-    """
     offset = {'x': position['x'] - body['position']['x'], 'y': position['y'] - body['position']['y']}
     body['force']['x'] += force['x']
     body['force']['y'] += force['y']
@@ -594,7 +540,6 @@ def apply_force(body: Dict, position: Dict, force: Dict) -> None:
 
 
 def _total_properties(body: Dict) -> Dict:
-    """Returns the sums of the properties of all compound parts."""
     properties = {
         'mass': 0,
         'area': 0,

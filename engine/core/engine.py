@@ -16,7 +16,6 @@ _base_delta = 1000 / 60
 
 
 def create(options: Optional[Dict] = None) -> Dict:
-    """Creates a new engine."""
     options = options or {}
     
     defaults = {
@@ -49,10 +48,6 @@ def create(options: Optional[Dict] = None) -> Dict:
 
 
 def update(engine: Dict, delta: float = None) -> Dict:
-    """
-    Moves the simulation forward in time by delta.
-    Uses Verlet integration for body physics and Gauss-Siedel for constraints.
-    """
     delta = delta if delta is not None else _base_delta
     
     world = engine['world']
@@ -145,7 +140,6 @@ def update(engine: Dict, delta: float = None) -> Dict:
 
 
 def merge(engine_a: Dict, engine_b: Dict) -> None:
-    """Merges two engines by keeping the configuration of engineA but adding the bodies from engineB."""
     bodies = Composite.all_bodies(engine_b['world'])
     
     for body in bodies:
@@ -153,13 +147,11 @@ def merge(engine_a: Dict, engine_b: Dict) -> None:
 
 
 def clear(engine: Dict) -> None:
-    """Clears the engine including the world and all pairs."""
     Pairs.clear(engine['pairs'])
     Detector.clear(engine['detector'])
 
 
 def _bodies_apply_gravity(bodies: List[Dict], gravity: Dict) -> None:
-    """Applies gravitational acceleration to all given bodies."""
     gravity_x = (gravity.get('x', 0) or 0) * gravity.get('scale', 0.001)
     gravity_y = (gravity.get('y', 1) or 0) * gravity.get('scale', 0.001)
     
@@ -176,7 +168,6 @@ def _bodies_apply_gravity(bodies: List[Dict], gravity: Dict) -> None:
 
 
 def _bodies_clear_forces(bodies: List[Dict]) -> None:
-    """Clears force accumulator on all bodies."""
     for body in bodies:
         body['force']['x'] = 0
         body['force']['y'] = 0

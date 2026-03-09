@@ -11,7 +11,6 @@ from simulation import (
     save_template,
     delete_template,
     JointWrapper,
-    MotorWrapper,
     Box,
 )
 
@@ -33,9 +32,6 @@ BOX_HOVER = (180, 150, 240)
 ROD_COLOR = (100, 181, 246)
 JOINT_COLOR = (0, 200, 150)
 JOINT_HOVER = (50, 230, 180)
-ACTUATOR_COLOR = (255, 140, 0)
-MOTOR_COLOR = (255, 80, 180)
-MOTOR_HOVER = (255, 120, 200)
 FORCE_COLOR = (255, 193, 7)
 BTN_COLOR = (45, 45, 60)
 BTN_HOVER = (65, 65, 85)
@@ -274,7 +270,6 @@ class DebugPanel:
         "box_count",
         "rod_count",
         "joint_count",
-        "motor_count",
         "connections",
         "moi",
         "torque",
@@ -296,9 +291,7 @@ class DebugPanel:
         "Bobs": BOB_COLOR,
         "Boxes": BOX_COLOR,
         "Rods": ROD_COLOR,
-        "Actuators": ACTUATOR_COLOR,
         "Joints": JOINT_COLOR,
-        "Motors": MOTOR_COLOR,
     }
 
     def __init__(self, x, y, width, height):
@@ -337,9 +330,7 @@ class DebugPanel:
             ("Bobs", [b for b in self.engine.bobs]),
             ("Boxes", [b for b in self.engine.boxes if b != self.engine.ground]),
             ("Rods", self.engine.rods),
-            ("Actuators", self.engine.actuators),
             ("Joints", self.engine.joints),
-            ("Motors", self.engine.motors),
         ]
 
         for cat_name, items in categories:
@@ -1023,8 +1014,7 @@ class TemplatePanel:
                     boxes = len(data.get("boxes", []))
                     rods = len(data.get("rods", []))
                     joints = len(data.get("joints", []))
-                    motors = len(data.get("motors", []))
-                    info = f"{bobs}b, {boxes}x, {rods}r, {joints}j, {motors}m"
+                    info = f"{bobs}b, {boxes}x, {rods}r, {joints}j"
                     info_text = font_debug_label.render(info, True, DEBUG_LABEL)
                     content_surface.blit(
                         info_text, (item_rect.x + 12, item_rect.y + 26)
@@ -1066,8 +1056,6 @@ class SimulationUI:
         self.connecting_body = None
         self.connecting_anchor = None
         self.connecting_joint = None
-        self.motor_joint = None
-        self.motor_body1 = None
         self.current_fps = 60
         self.current_dt = 0
         self.force_start = None
@@ -1124,17 +1112,8 @@ class SimulationUI:
         self.force_btn = Button(
             320, btn_y, 70, btn_h, "Force", self.set_force_mode, "ForceButton"
         )
-        self.actuator_btn = Button(
-            395,
-            btn_y,
-            50,
-            btn_h,
-            "Act",
-            self.set_actuator_mode,
-            "ActuatorButton",
-        )
         self.joint_btn = Button(
-            450,
+            395,
             btn_y,
             55,
             btn_h,
@@ -1142,20 +1121,11 @@ class SimulationUI:
             self.set_joint_mode,
             "JointButton",
         )
-        self.motor_btn = Button(
-            510,
-            btn_y,
-            55,
-            btn_h,
-            "Motor",
-            self.set_motor_mode,
-            "MotorButton",
-        )
         self.save_btn = Button(
-            570, btn_y, 60, btn_h, "Save", self.show_save_dialog, "SaveButton"
+            455, btn_y, 60, btn_h, "Save", self.show_save_dialog, "SaveButton"
         )
         self.templates_btn = Button(
-            635,
+            520,
             btn_y,
             50,
             btn_h,
@@ -1197,9 +1167,7 @@ class SimulationUI:
             self.rod_btn,
             self.pin_btn,
             self.force_btn,
-            self.actuator_btn,
             self.joint_btn,
-            self.motor_btn,
             self.save_btn,
             self.templates_btn,
             self.start_btn,
@@ -1215,9 +1183,7 @@ class SimulationUI:
         self.rod_btn.active = False
         self.pin_btn.active = False
         self.force_btn.active = False
-        self.actuator_btn.active = False
         self.joint_btn.active = False
-        self.motor_btn.active = False
 
     def set_bob_mode(self):
         self.mode = "bob"
@@ -1244,20 +1210,10 @@ class SimulationUI:
         self._clear_mode_buttons()
         self.force_btn.active = True
 
-    def set_actuator_mode(self):
-        self.mode = "actuator"
-        self._clear_mode_buttons()
-        self.actuator_btn.active = True
-
     def set_joint_mode(self):
         self.mode = "joint"
         self._clear_mode_buttons()
         self.joint_btn.active = True
-
-    def set_motor_mode(self):
-        self.mode = "motor"
-        self._clear_mode_buttons()
-        self.motor_btn.active = True
 
     def toggle_simulation(self):
         self.engine.toggle()
@@ -1291,8 +1247,6 @@ class SimulationUI:
         self.connecting_body = None
         self.connecting_anchor = None
         self.connecting_joint = None
-        self.motor_joint = None
-        self.motor_body1 = None
         self.force_start = None
         self.force_target = None
         self.resizing_box = None
@@ -1350,16 +1304,6 @@ class SimulationUI:
             clicked_rod = (
                 self.engine.get_rod_at(x, y) if not clicked_body and not clicked_joint else None
             )
-            clicked_actuator = (
-                self.engine.get_actuator_at(x, y)
-                if not clicked_body and not clicked_rod and not clicked_joint
-                else None
-            )
-            clicked_motor = (
-                self.engine.get_motor_at(x, y)
-                if not clicked_body and not clicked_rod and not clicked_joint and not clicked_actuator
-                else None
-            )
 
             if self.mode == "force":
                 if clicked_body:
@@ -1374,10 +1318,6 @@ class SimulationUI:
                 self.debug_panel.set_selected(clicked_joint)
             elif clicked_rod:
                 self.debug_panel.set_selected(clicked_rod)
-            elif clicked_actuator:
-                self.debug_panel.set_selected(clicked_actuator)
-            elif clicked_motor:
-                self.debug_panel.set_selected(clicked_motor)
             else:
                 self.debug_panel.go_back_to_list()
 
@@ -1431,26 +1371,6 @@ class SimulationUI:
                                 self.debug_panel.set_selected(new_rod)
                             self.connecting_body = None
                             self.connecting_anchor = None
-                elif self.mode == "actuator":
-                    if clicked_body:
-                        anchor = None
-                        if isinstance(clicked_body, Box):
-                            anchor = clicked_body.get_nearest_anchor(x, y)
-
-                        if self.connecting_body is None:
-                            self.connecting_body = clicked_body
-                            self.connecting_anchor = anchor
-                        elif self.connecting_body != clicked_body:
-                            new_actuator = self.engine.create_actuator(
-                                self.connecting_body,
-                                clicked_body,
-                                self.connecting_anchor,
-                                anchor,
-                            )
-                            if new_actuator:
-                                self.debug_panel.set_selected(new_actuator)
-                            self.connecting_body = None
-                            self.connecting_anchor = None
                 elif self.mode == "joint":
                     if clicked_joint:
                         if clicked_body:
@@ -1477,32 +1397,6 @@ class SimulationUI:
                     else:
                         new_joint = self.engine.create_joint(x, y)
                         self.debug_panel.set_selected(new_joint)
-                elif self.mode == "motor":
-                    if clicked_motor:
-                        self.debug_panel.set_selected(clicked_motor)
-                    elif clicked_joint:
-                        if self.motor_joint is None:
-                            self.motor_joint = clicked_joint
-                            self.motor_body1 = None
-                            self.debug_panel.set_selected(clicked_joint)
-                        else:
-                            self.motor_joint = clicked_joint
-                            self.motor_body1 = None
-                    elif clicked_body:
-                        if self.motor_joint is None:
-                            pass
-                        elif self.motor_body1 is None:
-                            self.motor_body1 = clicked_body
-                        elif self.motor_body1 != clicked_body:
-                            new_motor = self.engine.create_motor(
-                                self.motor_joint,
-                                self.motor_body1,
-                                clicked_body,
-                            )
-                            if new_motor:
-                                self.debug_panel.set_selected(new_motor)
-                            self.motor_joint = None
-                            self.motor_body1 = None
 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             x, y = event.pos
@@ -1520,16 +1414,6 @@ class SimulationUI:
                 clicked_rod = (
                     self.engine.get_rod_at(x, y) if not clicked_body and not clicked_joint else None
                 )
-                clicked_actuator = (
-                    self.engine.get_actuator_at(x, y)
-                    if not clicked_body and not clicked_rod and not clicked_joint
-                    else None
-                )
-                clicked_motor = (
-                    self.engine.get_motor_at(x, y)
-                    if not clicked_body and not clicked_rod and not clicked_joint and not clicked_actuator
-                    else None
-                )
 
                 if clicked_body:
                     self.debug_panel.set_selected(clicked_body)
@@ -1537,10 +1421,6 @@ class SimulationUI:
                     self.debug_panel.set_selected(clicked_joint)
                 elif clicked_rod:
                     self.debug_panel.set_selected(clicked_rod)
-                elif clicked_actuator:
-                    self.debug_panel.set_selected(clicked_actuator)
-                elif clicked_motor:
-                    self.debug_panel.set_selected(clicked_motor)
                 else:
                     self.debug_panel.go_back_to_list()
 
@@ -1586,8 +1466,6 @@ class SimulationUI:
                 self.connecting_body = None
                 self.connecting_anchor = None
                 self.connecting_joint = None
-                self.motor_joint = None
-                self.motor_body1 = None
                 self.force_start = None
                 self.force_target = None
             elif event.key == pygame.K_SPACE:
@@ -1670,34 +1548,6 @@ class SimulationUI:
                 )
             pygame.draw.line(surface, color, (x1, y1), (x2, y2), width)
 
-        for actuator in self.engine.actuators:
-            p1 = actuator.get_endpoint1()
-            p2 = actuator.get_endpoint2()
-            x1, y1 = int(p1[0]) - cam, int(p1[1])
-            x2, y2 = int(p2[0]) - cam, int(p2[1])
-
-            is_selected = self.debug_panel.selected_object == actuator
-            base_color = SELECTED_COLOR if is_selected else ACTUATOR_COLOR
-            width = 5 if is_selected else 3
-
-            if is_selected:
-                pygame.draw.line(
-                    surface, SELECTED_BORDER, (x1, y1), (x2, y2), width + 4
-                )
-
-            activation = actuator.activation
-            if activation > 0:
-                r = int(255 * activation + base_color[0] * (1 - activation))
-                g = int(50 * activation + base_color[1] * (1 - activation))
-                b = int(50 * activation + base_color[2] * (1 - activation))
-                color = (r, g, b)
-            else:
-                color = base_color
-
-            pygame.draw.line(surface, color, (x1, y1), (x2, y2), width)
-            pygame.draw.circle(surface, color, (x1, y1), 4)
-            pygame.draw.circle(surface, color, (x2, y2), 4)
-
         if self.connecting_body:
             mx, my = pygame.mouse.get_pos()
             if isinstance(self.connecting_body, Box) and self.connecting_anchor:
@@ -1764,7 +1614,7 @@ class SimulationUI:
                 )
                 pygame.draw.circle(surface, (0, 0, 0), (int(cx), int(cy)), 4)
 
-            if self.mode in ("rod", "actuator") and box != self.engine.ground:
+            if self.mode == "rod" and box != self.engine.ground:
                 anchors = box.get_all_world_anchors()
                 for name, (ax, ay) in anchors.items():
                     ax_i, ay_i = int(ax) - cam, int(ay)
@@ -1877,40 +1727,6 @@ class SimulationUI:
                 else:
                     ax, ay = int(body.body['position']['x']) - cam, int(body.body['position']['y'])
                 pygame.draw.line(surface, JOINT_COLOR, (x, y), (ax, ay), 2)
-
-        for motor in self.engine.motors:
-            jx = int(motor.joint_wrapper.body['position']['x']) - cam
-            jy = int(motor.joint_wrapper.body['position']['y'])
-            b1x = int(motor.body1.body['position']['x']) - cam
-            b1y = int(motor.body1.body['position']['y'])
-            b2x = int(motor.body2.body['position']['x']) - cam
-            b2y = int(motor.body2.body['position']['y'])
-
-            is_selected = self.debug_panel.selected_object == motor
-
-            if is_selected:
-                color = SELECTED_COLOR
-            else:
-                color = MOTOR_COLOR
-
-            pygame.draw.line(surface, color, (jx, jy), (b1x, b1y), 2)
-            pygame.draw.line(surface, color, (jx, jy), (b2x, b2y), 2)
-
-            if is_selected:
-                pygame.draw.circle(surface, SELECTED_BORDER, (jx, jy), motor.joint_wrapper.radius + 6, 2)
-            pygame.draw.circle(surface, color, (jx, jy), motor.joint_wrapper.radius + 3, 2)
-
-        if self.motor_joint:
-            mx, my = pygame.mouse.get_pos()
-            jx = int(self.motor_joint.body['position']['x']) - cam
-            jy = int(self.motor_joint.body['position']['y'])
-            if self.motor_body1:
-                b1x = int(self.motor_body1.body['position']['x']) - cam
-                b1y = int(self.motor_body1.body['position']['y'])
-                pygame.draw.line(surface, MOTOR_COLOR, (jx, jy), (b1x, b1y), 2)
-                pygame.draw.line(surface, (180, 80, 140), (jx, jy), (mx, my), 2)
-            else:
-                pygame.draw.line(surface, (180, 80, 140), (jx, jy), (mx, my), 2)
 
         if self.connecting_joint:
             mx, my = pygame.mouse.get_pos()

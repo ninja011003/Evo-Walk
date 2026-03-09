@@ -2,10 +2,6 @@ from typing import Dict, Any, List, Callable, Optional
 
 
 def on(obj: Dict, event_names: str, callback: Callable) -> Callable:
-    """
-    Subscribes a callback function to the given object's event(s).
-    Multiple event names can be provided separated by spaces.
-    """
     names = event_names.split(' ')
     
     for name in names:
@@ -19,11 +15,6 @@ def on(obj: Dict, event_names: str, callback: Callable) -> Callable:
 
 
 def off(obj: Dict, event_names: str, callback: Callable) -> None:
-    """
-    Removes the given event callback.
-    If no callback, clears all callbacks for that event.
-    If no event, clears all events on the object.
-    """
     if 'events' not in obj:
         return
     
@@ -46,9 +37,6 @@ def off(obj: Dict, event_names: str, callback: Callable) -> None:
 
 
 def trigger(obj: Dict, event_names: str, event: Optional[Dict] = None) -> None:
-    """
-    Fires all the callbacks subscribed to the given object's event(s).
-    """
     if 'events' not in obj:
         return
     

@@ -13,7 +13,7 @@ BOX_HEIGHT = 80
 GRAVITY_X = 0
 GRAVITY_Y = 1
 GRAVITY = Vector.create(GRAVITY_X, GRAVITY_Y)
-FORCE_MAGNITUDE = 5000
+FORCE_MAGNITUDE = 5
 
 
 class Bob:
@@ -30,9 +30,9 @@ class Bob:
         self.body = Bodies.circle(x, y, self.radius, {
             'is_static': pinned,
             'label': f'Bob_{self.id}',
-            'friction': 0.1,
-            'restitution': 0.3,
-            'friction_air': 0.01
+            'friction': 0.0,
+            'restitution': 1.0,
+            'friction_air': 0.0
         })
         
         if not pinned:
@@ -356,7 +356,7 @@ JOINT_RADIUS = 8
 
 
 class JointWrapper:
-    """Joint (pin constraint hub) wrapper."""
+    """Joint (pin constraint hub) wrapper with gradual angle control between connected bodies."""
     _id_counter = 0
 
     def __init__(self, x: float, y: float, radius: int = JOINT_RADIUS, engine_world: Dict = None):
@@ -375,6 +375,17 @@ class JointWrapper:
         self.connected_bodies = []
         self._constraints = []
         self._engine_world = engine_world
+        
+        # Angle control parameters (for controlling angle between two connected bodies)
+        self.target_angle = 0.0  # Target relative angle between body1 and body2
+        self.current_angle = 0.0  # Current interpolated angle (for gradual change)
+        self.min_angle = -math.pi
+        self.max_angle = math.pi
+        self.angle_speed = 2.0  # Radians per second for gradual angle change
+        self.kp = 500000.0  # Proportional gain for PD controller (needs to be high!)
+        self.kd = 5000.0  # Derivative gain for PD controller
+        self.max_torque = 10000000.0  # Maximum torque to apply
+        self.angle_control_enabled = False  # Enable/disable angle control
 
     @property
     def position(self) -> Dict:
@@ -412,11 +423,58 @@ class JointWrapper:
         
         return constraint
 
+    def set_target_angle(self, angle: float) -> None:
+        """Set the target angle between connected bodies (clamped to min/max)."""
+        self.target_angle = max(self.min_angle, min(self.max_angle, angle))
+
+    def update_angle_control(self, dt: float) -> None:
+        """Update angle control - gradually moves current_angle toward target and applies torque."""
+        if not self.angle_control_enabled or len(self.connected_bodies) < 2:
+            return
+        
+        # Gradually interpolate current_angle toward target_angle
+        angle_diff = self.target_angle - self.current_angle
+        max_change = self.angle_speed * dt
+        if abs(angle_diff) <= max_change:
+            self.current_angle = self.target_angle
+        else:
+            self.current_angle += max_change if angle_diff > 0 else -max_change
+        
+        # Get the two bodies to control angle between
+        body1_wrapper, _, _ = self.connected_bodies[0]
+        body2_wrapper, _, _ = self.connected_bodies[1]
+        
+        # Calculate relative angle
+        rel_angle = body2_wrapper.body['angle'] - body1_wrapper.body['angle']
+        rel_ang_vel = Body.get_angular_velocity(body2_wrapper.body) - Body.get_angular_velocity(body1_wrapper.body)
+        
+        # PD control to reach current_angle (the interpolated angle)
+        error = self.current_angle - rel_angle
+        torque = self.kp * error - self.kd * rel_ang_vel
+        
+        # Clamp torque
+        torque = max(-self.max_torque, min(self.max_torque, torque))
+        
+        # Apply torque to both bodies (equal and opposite)
+        if not getattr(body1_wrapper, 'pinned', False):
+            body1_wrapper.body['torque'] -= torque
+        if not getattr(body2_wrapper, 'pinned', False):
+            body2_wrapper.body['torque'] += torque
+
+    def get_relative_angle(self) -> float:
+        """Get the current relative angle between the first two connected bodies."""
+        if len(self.connected_bodies) < 2:
+            return 0.0
+        body1_wrapper, _, _ = self.connected_bodies[0]
+        body2_wrapper, _, _ = self.connected_bodies[1]
+        return body2_wrapper.body['angle'] - body1_wrapper.body['angle']
+
     def apply_force(self, force: Dict) -> None:
         Body.apply_force(self.body, self.body['position'], force)
 
     def get_debug_info(self) -> Dict:
         vel = Body.get_velocity(self.body)
+        rel_angle = self.get_relative_angle()
         return {
             "type": "Joint",
             "id": self.id,
@@ -430,6 +488,16 @@ class JointWrapper:
             "orientation": round(self.body['angle'], 2),
             "ang_velocity": round(Body.get_angular_velocity(self.body), 2),
             "connections": len(self.connected_bodies),
+            "angle_control": self.angle_control_enabled,
+            "target_angle": round(self.target_angle, 4),
+            "current_angle": round(self.current_angle, 4),
+            "rel_angle": round(rel_angle, 4),
+            "min_angle": round(self.min_angle, 4),
+            "max_angle": round(self.max_angle, 4),
+            "angle_speed": round(self.angle_speed, 2),
+            "kp": round(self.kp, 2),
+            "kd": round(self.kd, 2),
+            "max_torque": round(self.max_torque, 2),
         }
 
     def set_property(self, key: str, value: Any) -> None:
@@ -445,84 +513,22 @@ class JointWrapper:
             Body.set_mass(self.body, float(value))
         elif key == "radius":
             self.radius = max(3, int(value))
-
-
-class MotorWrapper:
-    """Motor wrapper that applies torque between two bodies via PD control."""
-    _id_counter = 0
-
-    def __init__(self, joint_wrapper: JointWrapper, body1, body2, 
-                 min_angle: float = -math.pi, max_angle: float = math.pi):
-        MotorWrapper._id_counter += 1
-        self.id = MotorWrapper._id_counter
-        self.joint_wrapper = joint_wrapper
-        self.body1 = body1
-        self.body2 = body2
-        self.min_angle = min_angle
-        self.max_angle = max_angle
-        self.target_angle = 0.0
-        self.name = f"Motor_{self.id}"
-        
-        # PD controller parameters
-        self.kp_motor = 500.0
-        self.kd_motor = 50.0
-        self.max_torque = 10000.0
-
-    def update(self, target_angle: float = None) -> None:
-        """Apply PD control torque to maintain target angle."""
-        if target_angle is not None:
-            self.target_angle = target_angle
-        
-        # Clamp target to limits
-        clamped_target = max(self.min_angle, min(self.max_angle, self.target_angle))
-        
-        rel_angle = self.body2.body['angle'] - self.body1.body['angle']
-        rel_ang_vel = Body.get_angular_velocity(self.body2.body) - Body.get_angular_velocity(self.body1.body)
-        
-        # PD control
-        error = clamped_target - rel_angle
-        torque = self.kp_motor * error - self.kd_motor * rel_ang_vel
-        
-        # Clamp torque
-        torque = max(-self.max_torque, min(self.max_torque, torque))
-        
-        if not self.body1.pinned:
-            self.body1.body['torque'] -= torque
-        if not self.body2.pinned:
-            self.body2.body['torque'] += torque
-
-    def set_target_angle(self, angle: float) -> None:
-        self.target_angle = angle
-
-    def get_debug_info(self) -> Dict:
-        rel_angle = self.body2.body['angle'] - self.body1.body['angle']
-        return {
-            "type": "Motor",
-            "id": self.id,
-            "name": self.name,
-            "joint": self.joint_wrapper.name,
-            "body1": self.body1.name,
-            "body2": self.body2.name,
-            "target_angle": round(self.target_angle, 4),
-            "rel_angle": round(rel_angle, 4),
-            "min_angle": round(self.min_angle, 4),
-            "max_angle": round(self.max_angle, 4),
-            "kp_motor": round(self.kp_motor, 2),
-            "kd_motor": round(self.kd_motor, 2),
-            "max_torque": round(self.max_torque, 2),
-        }
-
-    def set_property(self, key: str, value: Any) -> None:
-        if key == "target_angle":
-            self.target_angle = float(value)
+        elif key == "angle_control":
+            self.angle_control_enabled = bool(value)
+        elif key == "target_angle":
+            self.set_target_angle(float(value))
+        elif key == "current_angle":
+            self.current_angle = float(value)
         elif key == "min_angle":
             self.min_angle = float(value)
         elif key == "max_angle":
             self.max_angle = float(value)
-        elif key == "kp_motor":
-            self.kp_motor = max(0, float(value))
-        elif key == "kd_motor":
-            self.kd_motor = max(0, float(value))
+        elif key == "angle_speed":
+            self.angle_speed = max(0.01, float(value))
+        elif key == "kp":
+            self.kp = max(0, float(value))
+        elif key == "kd":
+            self.kd = max(0, float(value))
         elif key == "max_torque":
             self.max_torque = max(0, float(value))
 
@@ -639,142 +645,6 @@ class Rod:
             Body.set_position(self.bob2.body, {'x': self.bob2.body['position']['x'], 'y': float(value)})
 
 
-class Actuator:
-    """Spring-like actuator between two bodies."""
-    _id_counter = 0
-
-    def __init__(self, obj1, obj2, anchor1: str = None, anchor2: str = None, engine_world: Dict = None):
-        Actuator._id_counter += 1
-        self.id = Actuator._id_counter
-        self.obj1 = obj1
-        self.obj2 = obj2
-        self.anchor1 = anchor1
-        self.anchor2 = anchor2
-        self._engine_world = engine_world
-        self.name = f"Actuator_{self.id}"
-
-        p1 = self._get_position(obj1, anchor1)
-        p2 = self._get_position(obj2, anchor2)
-        dx = p2['x'] - p1['x']
-        dy = p2['y'] - p1['y']
-        self.rest_length = (dx * dx + dy * dy) ** 0.5
-
-        # Actuator parameters
-        self.max_force = 1000.0
-        self.max_stiffness = 100.0
-        self.damping = 10.0
-        self.activation = 0.0  # 0 to 1, controls stiffness
-
-    def _get_local_anchor(self, obj, anchor: str) -> Dict:
-        if isinstance(obj, Box) and anchor:
-            return obj.get_local_anchors()[anchor]
-        return {'x': 0, 'y': 0}
-
-    def _get_position(self, obj, anchor: str) -> Dict:
-        if isinstance(obj, Box) and anchor:
-            return obj.get_world_anchor(anchor)
-        return obj.body['position']
-
-    def get_endpoint1(self) -> Tuple[float, float]:
-        pos = self._get_position(self.obj1, self.anchor1)
-        return (pos['x'], pos['y'])
-
-    def get_endpoint2(self) -> Tuple[float, float]:
-        pos = self._get_position(self.obj2, self.anchor2)
-        return (pos['x'], pos['y'])
-
-    def cur_length(self) -> float:
-        p1 = self._get_position(self.obj1, self.anchor1)
-        p2 = self._get_position(self.obj2, self.anchor2)
-        dx = p2['x'] - p1['x']
-        dy = p2['y'] - p1['y']
-        return (dx * dx + dy * dy) ** 0.5
-
-    def apply_forces(self, dt: float) -> None:
-        """Apply spring-like forces based on activation level."""
-        p1 = self._get_position(self.obj1, self.anchor1)
-        p2 = self._get_position(self.obj2, self.anchor2)
-
-        dx = p2['x'] - p1['x']
-        dy = p2['y'] - p1['y']
-        dist = (dx * dx + dy * dy) ** 0.5
-
-        if dist < 0.001:
-            return
-
-        # Normalize direction
-        nx = dx / dist
-        ny = dy / dist
-
-        # Spring force
-        stiffness = self.max_stiffness * self.activation
-        stretch = dist - self.rest_length
-        spring_force = stiffness * stretch
-
-        # Damping (approximate velocity along axis)
-        v1 = Body.get_velocity(self.obj1.body)
-        v2 = Body.get_velocity(self.obj2.body)
-        rel_vel = (v2['x'] - v1['x']) * nx + (v2['y'] - v1['y']) * ny
-        damping_force = self.damping * rel_vel
-
-        # Total force
-        total_force = spring_force + damping_force
-        total_force = max(-self.max_force, min(self.max_force, total_force))
-
-        force = {'x': total_force * nx, 'y': total_force * ny}
-        neg_force = {'x': -total_force * nx, 'y': -total_force * ny}
-
-        Body.apply_force(self.obj1.body, p1, force)
-        Body.apply_force(self.obj2.body, p2, neg_force)
-
-    def contains(self, x: float, y: float) -> bool:
-        x1, y1 = self.get_endpoint1()
-        x2, y2 = self.get_endpoint2()
-
-        line_len = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-        if line_len == 0:
-            return False
-
-        t = max(0, min(1, ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / (line_len ** 2)))
-        proj_x = x1 + t * (x2 - x1)
-        proj_y = y1 + t * (y2 - y1)
-
-        dist = ((x - proj_x) ** 2 + (y - proj_y) ** 2) ** 0.5
-        return dist <= 10
-
-    def get_debug_info(self) -> Dict:
-        current_len = self.cur_length()
-        p1 = self.get_endpoint1()
-        p2 = self.get_endpoint2()
-        return {
-            "type": "Actuator",
-            "id": self.id,
-            "name": self.name,
-            "obj1": self.obj1.name,
-            "obj2": self.obj2.name,
-            "anchor1": self.anchor1 or "center",
-            "anchor2": self.anchor2 or "center",
-            "rest_length": round(self.rest_length, 2),
-            "current_length": round(current_len, 2),
-            "activation": round(self.activation, 3),
-            "max_force": round(self.max_force, 2),
-            "max_stiffness": round(self.max_stiffness, 2),
-            "damping": round(self.damping, 2),
-        }
-
-    def set_property(self, key: str, value: Any) -> None:
-        if key == "rest_length":
-            self.rest_length = max(1, float(value))
-        elif key == "activation":
-            self.activation = max(0, min(1, float(value)))
-        elif key == "max_force":
-            self.max_force = max(0, float(value))
-        elif key == "max_stiffness":
-            self.max_stiffness = max(0, float(value))
-        elif key == "damping":
-            self.damping = max(0, float(value))
-
-
 class SimulationEngine:
     """Main simulation engine using Matter.js-style physics."""
 
@@ -785,9 +655,9 @@ class SimulationEngine:
         self.engine = Engine.create({
             'gravity': {'x': GRAVITY_X, 'y': GRAVITY_Y, 'scale': 0.001},
             'enable_sleeping': False,
-            'position_iterations': 6,
-            'velocity_iterations': 4,
-            'constraint_iterations': 4
+            'position_iterations': 10,
+            'velocity_iterations': 10,
+            'constraint_iterations': 6
         })
         
         self.world = self.engine['world']
@@ -795,9 +665,7 @@ class SimulationEngine:
         self.bobs = []
         self.boxes = []
         self.rods = []
-        self.actuators = []
         self.joints = []
-        self.motors = []
         self.running = False
         self.iterations = 8
         self.dragging_bob = None
@@ -823,7 +691,6 @@ class SimulationEngine:
 
     def delete_box(self, box: Box) -> None:
         self.rods = [r for r in self.rods if r.bob1 != box and r.bob2 != box]
-        self.actuators = [a for a in self.actuators if a.obj1 != box and a.obj2 != box]
         if box in self.boxes:
             self.boxes.remove(box)
             Composite.remove(self.world, box.body)
@@ -855,11 +722,6 @@ class SimulationEngine:
         self.rods.append(rod)
         return rod
 
-    def create_actuator(self, obj1, obj2, anchor1: str = None, anchor2: str = None) -> Actuator:
-        actuator = Actuator(obj1, obj2, anchor1, anchor2, engine_world=self.world)
-        self.actuators.append(actuator)
-        return actuator
-
     def create_joint(self, x: float, y: float) -> JointWrapper:
         joint = JointWrapper(x, y, engine_world=self.world)
         self.joints.append(joint)
@@ -883,39 +745,8 @@ class SimulationEngine:
         constraint = joint.connect(body, anchor)
         Composite.add_constraint(self.world, constraint)
 
-    def create_motor(self, joint_wrapper: JointWrapper, body1, body2, 
-                     min_angle: float = -math.pi, max_angle: float = math.pi) -> MotorWrapper:
-        motor = MotorWrapper(joint_wrapper, body1, body2, min_angle, max_angle)
-        self.motors.append(motor)
-        return motor
-
-    def get_motor_at(self, x: float, y: float) -> Optional[MotorWrapper]:
-        for motor in reversed(self.motors):
-            jx = motor.joint_wrapper.body['position']['x']
-            jy = motor.joint_wrapper.body['position']['y']
-            dx = x - jx
-            dy = y - jy
-            if (dx * dx + dy * dy) <= (motor.joint_wrapper.radius + 12) ** 2:
-                return motor
-        return None
-
-    def delete_motor(self, motor: MotorWrapper) -> None:
-        if motor in self.motors:
-            self.motors.remove(motor)
-
-    def get_actuator_at(self, x: float, y: float) -> Optional[Actuator]:
-        for actuator in reversed(self.actuators):
-            if actuator.contains(x, y):
-                return actuator
-        return None
-
-    def delete_actuator(self, actuator: Actuator) -> None:
-        if actuator in self.actuators:
-            self.actuators.remove(actuator)
-
     def delete_bob(self, bob: Bob) -> None:
         self.rods = [r for r in self.rods if r.bob1 != bob and r.bob2 != bob]
-        self.actuators = [a for a in self.actuators if a.obj1 != bob and a.obj2 != bob]
         if bob in self.bobs:
             self.bobs.remove(bob)
             Composite.remove(self.world, bob.body)
@@ -976,9 +807,7 @@ class SimulationEngine:
         self.bobs = []
         self.boxes = []
         self.rods = []
-        self.actuators = []
         self.joints = []
-        self.motors = []
         self.running = False
         self.dragging_bob = None
         self.dragging_box = None
@@ -988,17 +817,15 @@ class SimulationEngine:
         Bob._id_counter = 0
         Box._id_counter = 0
         Rod._id_counter = 0
-        Actuator._id_counter = 0
         JointWrapper._id_counter = 0
-        MotorWrapper._id_counter = 0
         
         # Recreate engine
         self.engine = Engine.create({
             'gravity': {'x': GRAVITY_X, 'y': GRAVITY_Y, 'scale': 0.001},
             'enable_sleeping': False,
-            'position_iterations': 6,
-            'velocity_iterations': 4,
-            'constraint_iterations': 4
+            'position_iterations': 10,
+            'velocity_iterations': 10,
+            'constraint_iterations': 6
         })
         self.world = self.engine['world']
         
@@ -1011,11 +838,9 @@ class SimulationEngine:
         if not self.running:
             return
 
-        for actuator in self.actuators:
-            actuator.apply_forces(dt)
-
-        for motor in self.motors:
-            motor.update()
+        # Update joint angle control (gradual angle changes)
+        for joint in self.joints:
+            joint.update_angle_control(dt)
 
         Engine.update(self.engine, dt * 1000)
 
@@ -1028,7 +853,6 @@ class SimulationEngine:
             "box_count": len(self.boxes),
             "rod_count": len(self.rods),
             "joint_count": len(self.joints),
-            "motor_count": len(self.motors),
             "iterations": self.iterations,
             "gravity.x": self.engine['gravity']['x'],
             "gravity.y": self.engine['gravity']['y'],
@@ -1093,26 +917,6 @@ class SimulationEngine:
                     "length": rod.length,
                 })
 
-        actuators_data = []
-        for actuator in self.actuators:
-            obj1_type = "bob" if actuator.obj1 in bob_map else "box"
-            obj2_type = "bob" if actuator.obj2 in bob_map else "box"
-            obj1_idx = bob_map.get(actuator.obj1, box_map.get(actuator.obj1, -1))
-            obj2_idx = bob_map.get(actuator.obj2, box_map.get(actuator.obj2, -1))
-            if obj1_idx >= 0 and obj2_idx >= 0:
-                actuators_data.append({
-                    "obj1_type": obj1_type,
-                    "obj1_idx": obj1_idx,
-                    "obj2_type": obj2_type,
-                    "obj2_idx": obj2_idx,
-                    "anchor1": actuator.anchor1,
-                    "anchor2": actuator.anchor2,
-                    "rest_length": actuator.rest_length,
-                    "max_force": actuator.max_force,
-                    "max_stiffness": actuator.max_stiffness,
-                    "damping": actuator.damping,
-                })
-
         joint_map = {}
         joints_data = []
         for i, joint in enumerate(self.joints):
@@ -1138,37 +942,22 @@ class SimulationEngine:
                 "mass": joint.body['mass'],
                 "orientation": joint.body['angle'],
                 "connections": connections,
+                "angle_control_enabled": joint.angle_control_enabled,
+                "target_angle": joint.target_angle,
+                "current_angle": joint.current_angle,
+                "min_angle": joint.min_angle,
+                "max_angle": joint.max_angle,
+                "angle_speed": joint.angle_speed,
+                "kp": joint.kp,
+                "kd": joint.kd,
+                "max_torque": joint.max_torque,
             })
-
-        motors_data = []
-        for motor in self.motors:
-            joint_idx = joint_map.get(motor.joint_wrapper, -1)
-            body1_type = "bob" if motor.body1 in bob_map else "box"
-            body2_type = "bob" if motor.body2 in bob_map else "box"
-            body1_idx = bob_map.get(motor.body1, box_map.get(motor.body1, -1))
-            body2_idx = bob_map.get(motor.body2, box_map.get(motor.body2, -1))
-            if joint_idx >= 0 and body1_idx >= 0 and body2_idx >= 0:
-                motors_data.append({
-                    "joint_idx": joint_idx,
-                    "body1_type": body1_type,
-                    "body1_idx": body1_idx,
-                    "body2_type": body2_type,
-                    "body2_idx": body2_idx,
-                    "min_angle": motor.min_angle,
-                    "max_angle": motor.max_angle,
-                    "target_angle": motor.target_angle,
-                    "kp_motor": motor.kp_motor,
-                    "kd_motor": motor.kd_motor,
-                    "max_torque": motor.max_torque,
-                })
 
         return {
             "bobs": bobs_data,
             "boxes": boxes_data,
             "rods": rods_data,
-            "actuators": actuators_data,
             "joints": joints_data,
-            "motors": motors_data,
         }
 
     def load_template(self, data: Dict, offset_x: float = 0, offset_y: float = 0) -> None:
@@ -1216,29 +1005,6 @@ class SimulationEngine:
                     rod.length = rod_data["length"]
                     rod.constraint['length'] = rod_data["length"]
 
-        for actuator_data in data.get("actuators", []):
-            obj1_type = actuator_data.get("obj1_type", "bob")
-            obj2_type = actuator_data.get("obj2_type", "bob")
-            obj1_idx = actuator_data["obj1_idx"]
-            obj2_idx = actuator_data["obj2_idx"]
-
-            obj1 = bob_map.get(obj1_idx) if obj1_type == "bob" else box_map.get(obj1_idx)
-            obj2 = bob_map.get(obj2_idx) if obj2_type == "bob" else box_map.get(obj2_idx)
-
-            if obj1 and obj2:
-                anchor1 = actuator_data.get("anchor1")
-                anchor2 = actuator_data.get("anchor2")
-                actuator = self.create_actuator(obj1, obj2, anchor1, anchor2)
-                if actuator:
-                    if "rest_length" in actuator_data:
-                        actuator.rest_length = actuator_data["rest_length"]
-                    if "max_force" in actuator_data:
-                        actuator.max_force = actuator_data["max_force"]
-                    if "max_stiffness" in actuator_data:
-                        actuator.max_stiffness = actuator_data["max_stiffness"]
-                    if "damping" in actuator_data:
-                        actuator.damping = actuator_data["damping"]
-
         joint_map = {}
         for i, joint_data in enumerate(data.get("joints", [])):
             joint = self.create_joint(
@@ -1252,6 +1018,25 @@ class SimulationEngine:
                 Body.set_mass(joint.body, joint_data["mass"])
             if "orientation" in joint_data:
                 Body.set_angle(joint.body, joint_data["orientation"])
+            # Load angle control parameters
+            if "angle_control_enabled" in joint_data:
+                joint.angle_control_enabled = joint_data["angle_control_enabled"]
+            if "target_angle" in joint_data:
+                joint.target_angle = joint_data["target_angle"]
+            if "current_angle" in joint_data:
+                joint.current_angle = joint_data["current_angle"]
+            if "min_angle" in joint_data:
+                joint.min_angle = joint_data["min_angle"]
+            if "max_angle" in joint_data:
+                joint.max_angle = joint_data["max_angle"]
+            if "angle_speed" in joint_data:
+                joint.angle_speed = joint_data["angle_speed"]
+            if "kp" in joint_data:
+                joint.kp = joint_data["kp"]
+            if "kd" in joint_data:
+                joint.kd = joint_data["kd"]
+            if "max_torque" in joint_data:
+                joint.max_torque = joint_data["max_torque"]
             for conn in joint_data.get("connections", []):
                 body_type = conn.get("body_type", "bob")
                 body_idx = conn.get("body_idx", -1)
@@ -1259,31 +1044,6 @@ class SimulationEngine:
                 body = bob_map.get(body_idx) if body_type == "bob" else box_map.get(body_idx)
                 if body:
                     self.connect_to_joint(joint, body, anchor)
-
-        for motor_data in data.get("motors", []):
-            joint_idx = motor_data.get("joint_idx", -1)
-            body1_type = motor_data.get("body1_type", "bob")
-            body2_type = motor_data.get("body2_type", "bob")
-            body1_idx = motor_data.get("body1_idx", -1)
-            body2_idx = motor_data.get("body2_idx", -1)
-
-            joint = joint_map.get(joint_idx)
-            body1 = bob_map.get(body1_idx) if body1_type == "bob" else box_map.get(body1_idx)
-            body2 = bob_map.get(body2_idx) if body2_type == "bob" else box_map.get(body2_idx)
-
-            if joint and body1 and body2:
-                min_angle = motor_data.get("min_angle", -math.pi)
-                max_angle = motor_data.get("max_angle", math.pi)
-                motor = self.create_motor(joint, body1, body2, min_angle, max_angle)
-                if motor:
-                    if "target_angle" in motor_data:
-                        motor.target_angle = motor_data["target_angle"]
-                    if "kp_motor" in motor_data:
-                        motor.kp_motor = motor_data["kp_motor"]
-                    if "kd_motor" in motor_data:
-                        motor.kd_motor = motor_data["kd_motor"]
-                    if "max_torque" in motor_data:
-                        motor.max_torque = motor_data["max_torque"]
 
 
 def load_templates() -> Dict:

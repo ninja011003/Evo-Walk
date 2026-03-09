@@ -4,10 +4,6 @@ from . import vector as Vector
 
 
 def from_vertices(vertices: List[Dict]) -> List[Dict]:
-    """
-    Creates a new set of axes from the given vertices.
-    Returns unique edge normals for collision detection.
-    """
     axes = {}
     
     for i in range(len(vertices)):
@@ -32,7 +28,6 @@ def from_vertices(vertices: List[Dict]) -> List[Dict]:
 
 
 def rotate(axes: List[Dict], angle: float) -> None:
-    """Rotates a set of axes by the given angle in-place."""
     if angle == 0:
         return
     

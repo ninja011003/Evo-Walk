@@ -10,7 +10,6 @@ _min_bias = 0.9
 
 
 def update(bodies: List[Dict], delta: float) -> None:
-    """Updates sleeping state for all bodies."""
     time_factor = delta / Common._base_delta
     
     for body in bodies:
@@ -33,7 +32,6 @@ def update(bodies: List[Dict], delta: float) -> None:
 
 
 def after_collisions(pairs: List[Dict]) -> None:
-    """Wake bodies involved in collisions."""
     for pair in pairs:
         if not pair.get('is_active', False):
             continue
@@ -60,7 +58,6 @@ def after_collisions(pairs: List[Dict]) -> None:
 
 
 def set_sleeping(body: Dict, is_sleeping: bool) -> None:
-    """Sets a body as sleeping or awake."""
     if is_sleeping:
         body['is_sleeping'] = True
         body['sleep_counter'] = body.get('sleep_threshold', 60)

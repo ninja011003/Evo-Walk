@@ -5,7 +5,6 @@ from . import collision as Collision
 
 
 def create(options: Optional[Dict] = None) -> Dict:
-    """Creates a new collision detector."""
     options = options or {}
     
     defaults = {
@@ -18,21 +17,15 @@ def create(options: Optional[Dict] = None) -> Dict:
 
 
 def set_bodies(detector: Dict, bodies: List[Dict]) -> None:
-    """Sets the list of bodies in the detector."""
     detector['bodies'] = list(bodies)
 
 
 def clear(detector: Dict) -> None:
-    """Clears the detector including its list of bodies."""
     detector['bodies'] = []
     detector['collisions'] = []
 
 
 def collisions(detector: Dict) -> List[Dict]:
-    """
-    Efficiently finds all collisions among all the bodies in detector.bodies
-    using a broadphase algorithm (sweep and prune on x-axis).
-    """
     pairs = detector['pairs']
     bodies = detector['bodies']
     bodies_length = len(bodies)
@@ -121,9 +114,6 @@ def collisions(detector: Dict) -> List[Dict]:
 
 
 def can_collide(filter_a: Dict, filter_b: Dict) -> bool:
-    """
-    Returns True if both supplied collision filters will allow a collision to occur.
-    """
     group_a = filter_a.get('group', 0)
     group_b = filter_b.get('group', 0)
     

@@ -8,10 +8,6 @@ from ..core import common as Common
 
 
 def rectangle(x: float, y: float, width: float, height: float, options: Optional[Dict] = None) -> Dict:
-    """
-    Creates a new rigid body model with a rectangle hull.
-    The options parameter is passed to Body.create, allowing you to set body properties.
-    """
     options = options or {}
     
     rectangle_opts = dict(options)
@@ -25,9 +21,6 @@ def rectangle(x: float, y: float, width: float, height: float, options: Optional
 
 
 def trapezoid(x: float, y: float, width: float, height: float, slope: float, options: Optional[Dict] = None) -> Dict:
-    """
-    Creates a new rigid body model with a trapezoid hull.
-    """
     options = options or {}
     slope = slope or 0.5
     
@@ -59,9 +52,6 @@ def trapezoid(x: float, y: float, width: float, height: float, slope: float, opt
 
 
 def circle(x: float, y: float, radius: float, options: Optional[Dict] = None, max_sides: int = 25) -> Dict:
-    """
-    Creates a new rigid body model with a circle hull (approximated by a polygon).
-    """
     options = options or {}
     
     sides = max(10, min(max_sides, round(radius)))
@@ -91,9 +81,6 @@ def circle(x: float, y: float, radius: float, options: Optional[Dict] = None, ma
 
 
 def polygon(x: float, y: float, sides: int, radius: float, options: Optional[Dict] = None) -> Dict:
-    """
-    Creates a new rigid body model with a regular polygon hull.
-    """
     options = options or {}
     
     if sides < 3:
@@ -118,12 +105,6 @@ def polygon(x: float, y: float, sides: int, radius: float, options: Optional[Dic
 
 
 def from_vertices(x: float, y: float, vertex_sets: Any, options: Optional[Dict] = None, flag_internal: bool = False, remove_collinear: float = 0.01, minimum_area: float = 10, remove_duplicates: float = 0.01) -> Dict:
-    """
-    Creates a body using the supplied vertices (or an array of vertices).
-    If the vertices are convex, they will be used as-is.
-    If they are concave or contain multiple parts, convex decomposition is required
-    (this implementation assumes convex input for simplicity).
-    """
     options = options or {}
     
     # Handle input as single set or multiple sets
@@ -174,7 +155,6 @@ def from_vertices(x: float, y: float, vertex_sets: Any, options: Optional[Dict] 
 # Composite shapes
 
 def stack(x: float, y: float, columns: int, rows: int, column_gap: float, row_gap: float, callback) -> List[Dict]:
-    """Creates a stack of bodies in a grid arrangement."""
     from ..body import composite as Composite
     
     stack = Composite.create({'label': 'Stack'})
@@ -209,7 +189,6 @@ def stack(x: float, y: float, columns: int, rows: int, column_gap: float, row_ga
 
 
 def pyramid(x: float, y: float, columns: int, rows: int, column_gap: float, row_gap: float, callback) -> Dict:
-    """Creates a pyramid structure of bodies."""
     from ..body import composite as Composite
     
     stack = Composite.create({'label': 'Pyramid'})
@@ -233,7 +212,6 @@ def pyramid(x: float, y: float, columns: int, rows: int, column_gap: float, row_
 
 
 def chain(composite: Dict, x_offset_a: float, y_offset_a: float, x_offset_b: float, y_offset_b: float, options: Optional[Dict] = None) -> Dict:
-    """Chains all bodies in the given composite together using constraints."""
     from ..body import composite as Composite
     from ..constraint import constraint as Constraint
     
@@ -260,7 +238,6 @@ def chain(composite: Dict, x_offset_a: float, y_offset_a: float, x_offset_b: flo
 
 
 def mesh(composite: Dict, columns: int, rows: int, cross_brace: bool, options: Optional[Dict] = None) -> Dict:
-    """Creates a mesh constraint connection between bodies in a grid."""
     from ..body import composite as Composite
     from ..constraint import constraint as Constraint
     
